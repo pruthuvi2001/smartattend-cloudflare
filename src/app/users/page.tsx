@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getAllUsers, createOrUpdateUserProfile, updateUserRoleAndStatus } from "@/lib/firebase/auth";
+import { getAllUsers, createStaffAccount, updateUserRoleAndStatus } from "@/lib/firebase/auth";
 import { UserProfile, UserRole } from "@/types/user";
 import { ROLE_PERMISSIONS } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +22,7 @@ export default function UsersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("STAFF");
   const [saving, setSaving] = useState(false);
   const toast = useToast();
@@ -31,7 +32,6 @@ export default function UsersPage() {
     try {
       const list = await getAllUsers();
       if (list.length === 0) {
-        // Fallback default admin & staff for display
         const defaults: UserProfile[] = [
           {
             userId: "admin-master-001",
@@ -69,15 +69,15 @@ export default function UsersPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !displayName) return;
+    if (!email || !displayName || !password) return;
     setSaving(true);
     try {
-      const generatedUid = `user-${Date.now()}`;
-      await createOrUpdateUserProfile(generatedUid, email.trim(), displayName.trim(), role);
+      await createStaffAccount(email.trim(), password, displayName.trim(), role);
       toast.success("User Created", `Registered ${displayName} as ${role}`);
       setAddModalOpen(false);
       setEmail("");
       setDisplayName("");
+      setPassword("");
       await loadUsers();
     } catch (err: any) {
       toast.error("Error creating user", err.message);
@@ -215,6 +215,16 @@ export default function UsersPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+              />
+
+              <Input
+                label="Temporary Password"
+                type="password"
+                placeholder="Min. 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
               />
 
               <Select

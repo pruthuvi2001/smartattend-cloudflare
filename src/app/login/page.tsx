@@ -123,7 +123,7 @@ export default function LoginPage() {
               className="w-full py-2.5 font-bold shadow-md shadow-indigo-600/20"
               isLoading={isLoading}
             >
-              Sign In to System
+              Sign In
             </Button>
           </form>
 

@@ -18,4 +18,4 @@ const db: Firestore = getFirestore(app);
 
 export const isDemoMode = !process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY === "demo-api-key";
 
-export { app, auth, db };
+export { app, auth, db , firebaseConfig };

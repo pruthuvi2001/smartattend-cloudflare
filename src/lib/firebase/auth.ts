@@ -13,7 +13,9 @@ import {
   getDocs,
   serverTimestamp
 } from "firebase/firestore";
-import { auth, db } from "./config";
+import { initializeApp, deleteApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { auth, db, firebaseConfig } from "./config";
 import { UserProfile, UserRole } from "@/types/user";
 
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
@@ -60,6 +62,26 @@ export async function createOrUpdateUserProfile(
 
   await setDoc(ref, profile, { merge: true });
   return profile;
+}
+
+// NEW: creates a real Firebase Auth account (with password) + Firestore profile,
+// without signing out the currently logged-in admin.
+export async function createStaffAccount(
+  email: string,
+  password: string,
+  displayName: string,
+  role: UserRole = "STAFF"
+): Promise<UserProfile> {
+  const secondaryApp = initializeApp(firebaseConfig, `Secondary-${Date.now()}`);
+  const secondaryAuth = getAuth(secondaryApp);
+
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const profile = await createOrUpdateUserProfile(cred.user.uid, email, displayName, role);
+    return profile;
+  } finally {
+    await deleteApp(secondaryApp);
+  }
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
