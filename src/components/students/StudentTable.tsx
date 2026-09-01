@@ -26,10 +26,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
-  // Extract unique classes
   const classes = Array.from(new Set(students.map((s) => s.class))).sort();
 
-  // Filter students
   const filtered = students.filter((s) => {
     const matchesSearch =
       s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -47,7 +45,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Search and Filters Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <Input
           placeholder="Search by ID, name, or QR..."
@@ -85,7 +82,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         />
       </div>
 
-      {/* Table Container */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
@@ -93,7 +89,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
               <tr>
                 <th className="py-3.5 px-4">Student ID</th>
                 <th className="py-3.5 px-4">Full Name</th>
-                <th className="py-3.5 px-4">Class & Section</th>
+                <th className="py-3.5 px-4">Class</th>
                 <th className="py-3.5 px-4">QR Payload</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -119,6 +115,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         </div>
                         <span>{s.fullName}</span>
                       </div>
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">
+                      {s.class}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-xs text-slate-500">
                       <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
@@ -174,7 +173,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           </table>
         </div>
 
-        {/* Pagination Footer */}
         {filtered.length > pageSize && (
           <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
             <span>

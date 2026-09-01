@@ -17,6 +17,8 @@ export function parseStudentQrPayload(rawQrData: string): string {
   if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
     try {
       const parsed = JSON.parse(cleaned);
+      if (parsed.STD_ID) return String(parsed.STD_ID).trim();
+      if (parsed.std_ID) return String(parsed.std_ID).trim(); 
       if (parsed.studentId) return String(parsed.studentId).trim();
       if (parsed.id) return String(parsed.id).trim();
       if (parsed.qrCodeValue) return String(parsed.qrCodeValue).trim();

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { playSuccessBeep, playDuplicateBeep, playErrorBeep } from "@/lib/utils/soundEffects";
+import { parseStudentQrPayload } from "@/lib/utils/qrUtils";
 
 export interface QrCameraScannerProps {
   onScan: (qrData: string) => Promise<void>;
@@ -79,17 +80,18 @@ export const QrCameraScanner: React.FC<QrCameraScannerProps> = ({ onScan, isProc
         targetCameraId,
         config,
         async (decodedText: string) => {
-          // Debounce same QR within 2.5 seconds to prevent spamming
+          // Debounce same QR within 5 seconds to prevent spamming
           const now = Date.now();
           if (
             lastScannedQr.current.text === decodedText &&
-            now - lastScannedQr.current.time < 2500
+            now - lastScannedQr.current.time < 5000
           ) {
             return;
           }
 
           lastScannedQr.current = { text: decodedText, time: now };
-          await onScan(decodedText);
+          const studentId = parseStudentQrPayload(decodedText);
+          await onScan(studentId);
         },
         () => {
           // Frame callback - quiet
@@ -131,7 +133,7 @@ export const QrCameraScanner: React.FC<QrCameraScannerProps> = ({ onScan, isProc
     e.preventDefault();
     if (!manualInput.trim()) return;
     setManualModalOpen(false);
-    const val = manualInput.trim();
+    const val = parseStudentQrPayload(manualInput.trim());
     setManualInput("");
     await onScan(val);
   };

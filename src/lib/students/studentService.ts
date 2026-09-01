@@ -146,7 +146,6 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     studentId,
     fullName: formData.fullName.trim(),
     class: formData.class.trim(),
-    section: formData.section.trim(),
     email: formData.email?.trim() || "",
     phone: formData.phone?.trim() || "",
     photoUrl: formData.photoUrl?.trim() || "",
