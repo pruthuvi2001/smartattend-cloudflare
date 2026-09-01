@@ -68,7 +68,7 @@ export default function LoginPage() {
           <School className="w-8 h-8" />
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Student Management System
+          MathLAbs
         </h2>
         <p className="mt-1.5 text-xs sm:text-sm text-slate-400">
           Powered By Banana Kingdom. 
