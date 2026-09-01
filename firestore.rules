@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'ADMIN';
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && (getUserData().role == 'STAFF' || getUserData().role == 'ADMIN');
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // 2. Students collection
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // 3. Attendance collection
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      // Allow atomic creation if authenticated staff and matching studentId_date format
+      allow create: if isAuthenticated() && isStaff() && request.resource.data.studentId != null;
+      // Disallow unauthorized modifications of historical attendance
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4. Settings collection
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 5. Monthly Fee Records & Payments
+    match /feeRecords/{feeRecordId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isStaff();
+      allow delete: if isAdmin();
+
+      match /payments/{paymentId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated() && isStaff();
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}

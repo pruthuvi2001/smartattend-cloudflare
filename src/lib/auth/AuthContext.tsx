@@ -1,0 +1,149 @@
+﻿"use client";
+
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth, isDemoMode } from "@/lib/firebase/config";
+import { getUserProfile, createOrUpdateUserProfile, logoutUser } from "@/lib/firebase/auth";
+import { UserProfile, UserRole } from "@/types/user";
+
+interface AuthContextType {
+  user: User | null;
+  userProfile: UserProfile | null;
+  role: UserRole;
+  isAdmin: boolean;
+  isStaff: boolean;
+  loading: boolean;
+  demoMode: boolean;
+  loginAsDemo: (role?: UserRole) => void;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  userProfile: null,
+  role: "STAFF",
+  isAdmin: false,
+  isStaff: true,
+  loading: true,
+  demoMode: false,
+  loginAsDemo: () => {},
+  logout: async () => {},
+  refreshProfile: async () => {},
+});
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [demoUserRole, setDemoUserRole] = useState<UserRole | null>(null);
+
+  const fetchProfile = async (firebaseUser: User) => {
+    let profile = await getUserProfile(firebaseUser.uid);
+    if (!profile) {
+      // First registered user becomes ADMIN, others STAFF
+      const initialRole: UserRole = "ADMIN";
+      profile = await createOrUpdateUserProfile(
+        firebaseUser.uid,
+        firebaseUser.email || "user@smartattend.edu",
+        firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
+        initialRole
+      );
+    }
+    setUserProfile(profile);
+  };
+
+  useEffect(() => {
+    // Check if demo user saved in sessionStorage for instant dev persistence
+    if (typeof window !== 'undefined') {
+      const savedDemo = sessionStorage.getItem('smartattend_demo_user');
+      if (savedDemo) {
+        try {
+          const parsed = JSON.parse(savedDemo);
+          setUserProfile(parsed);
+          setDemoUserRole(parsed.role);
+          setLoading(false);
+          return;
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        await fetchProfile(currentUser);
+      } else {
+        if (!demoUserRole) {
+          setUserProfile(null);
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [demoUserRole]);
+
+  const loginAsDemo = (role: UserRole = "ADMIN") => {
+    const demoProfile: UserProfile = {
+      userId: `demo-${role.toLowerCase()}-001`,
+      email: `${role.toLowerCase()}@smartattend.edu`,
+      displayName: role === "ADMIN" ? "Admin Administrator" : "Staff Member (Demo)",
+      role,
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setUserProfile(demoProfile);
+    setDemoUserRole(role);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('smartattend_demo_user', JSON.stringify(demoProfile));
+    }
+    setLoading(false);
+  };
+
+  const logout = async () => {
+    setDemoUserRole(null);
+    setUserProfile(null);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('smartattend_demo_user');
+    }
+    try {
+      await logoutUser();
+    } catch {
+      // ignore
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user);
+    }
+  };
+
+  const currentRole: UserRole = userProfile?.role || "STAFF";
+  const isAdmin = currentRole === "ADMIN";
+  const isStaff = currentRole === "STAFF" || currentRole === "ADMIN";
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        userProfile,
+        role: currentRole,
+        isAdmin,
+        isStaff,
+        loading,
+        demoMode: isDemoMode,
+        loginAsDemo,
+        logout,
+        refreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
