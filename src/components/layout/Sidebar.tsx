@@ -52,12 +52,12 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-bold text-white tracking-tight text-base">SmartAttend</h1>
+              <h1 className="font-bold text-white tracking-tight text-base">Wisdom English Academy</h1>
               <span className="bg-indigo-950 text-indigo-400 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-indigo-800">
                 PRO
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">QR Attendance System</p>
+            <p className="text-[11px] text-slate-400">Student Attendance Management</p>
           </div>
         </div>
 
