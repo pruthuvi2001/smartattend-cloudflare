@@ -22,6 +22,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({
   const [studentId, setStudentId] = useState(initialData?.studentId || "");
   const [fullName, setFullName] = useState(initialData?.fullName || "");
   const [studentClass, setStudentClass] = useState(initialData?.class || "Grade 10");
+  const [section, setSection] = useState(initialData?.section || "");
   const [email, setEmail] = useState(initialData?.email || "");
   const [phone, setPhone] = useState(initialData?.phone || "");
   const [qrCodeValue, setQrCodeValue] = useState(initialData?.qrCodeValue || "");
@@ -42,7 +43,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({
         studentId: studentId.trim().toUpperCase(),
         fullName: fullName.trim(),
         class: studentClass.trim(),
-        // section: section.trim(),
+        section: section.trim(),
         email: email.trim(),
         phone: phone.trim(),
         qrCodeValue: (qrCodeValue.trim() || studentId.trim()).toUpperCase(),
@@ -102,10 +103,16 @@ export const StudentForm: React.FC<StudentFormProps> = ({
             { label: "Grade 9", value: "Grade 9" },
             { label: "Grade 10", value: "Grade 10" },
             { label: "Grade 11", value: "Grade 11" },
-          
           ]}
         />
 
+        <Input
+          label="Section *"
+          placeholder="e.g. A"
+          value={section}
+          onChange={(e) => setSection(e.target.value)}
+          required
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
