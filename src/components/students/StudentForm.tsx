@@ -22,7 +22,6 @@ export const StudentForm: React.FC<StudentFormProps> = ({
   const [studentId, setStudentId] = useState(initialData?.studentId || "");
   const [fullName, setFullName] = useState(initialData?.fullName || "");
   const [studentClass, setStudentClass] = useState(initialData?.class || "Grade 10");
-  const [section, setSection] = useState(initialData?.section || "A");
   const [email, setEmail] = useState(initialData?.email || "");
   const [phone, setPhone] = useState(initialData?.phone || "");
   const [qrCodeValue, setQrCodeValue] = useState(initialData?.qrCodeValue || "");
@@ -43,7 +42,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({
         studentId: studentId.trim().toUpperCase(),
         fullName: fullName.trim(),
         class: studentClass.trim(),
-        section: section.trim(),
+        // section: section.trim(),
         email: email.trim(),
         phone: phone.trim(),
         qrCodeValue: (qrCodeValue.trim() || studentId.trim()).toUpperCase(),
@@ -92,20 +91,21 @@ export const StudentForm: React.FC<StudentFormProps> = ({
           value={studentClass}
           onChange={(e) => setStudentClass(e.target.value)}
           options={[
+            { label: "Grade 1", value: "Grade 1" },
+            { label: "Grade 2", value: "Grade 2" },
+            { label: "Grade 3", value: "Grade 3" },
+            { label: "Grade 4", value: "Grade 4" },
+            { label: "Grade 5", value: "Grade 5" },
+            { label: "Grade 6", value: "Grade 6" },
+            { label: "Grade 7", value: "Grade 7" },
+            { label: "Grade 8", value: "Grade 8" },
+            { label: "Grade 9", value: "Grade 9" },
             { label: "Grade 10", value: "Grade 10" },
             { label: "Grade 11", value: "Grade 11" },
-            { label: "Grade 12", value: "Grade 12" },
-            { label: "Grade 13", value: "Grade 13" },
+          
           ]}
         />
 
-        <Input
-          label="Section / Stream *"
-          placeholder="e.g. A, B, Maths, Bio"
-          value={section}
-          onChange={(e) => setSection(e.target.value)}
-          required
-        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

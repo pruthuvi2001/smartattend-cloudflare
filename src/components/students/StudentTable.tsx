@@ -120,9 +120,6 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         <span>{s.fullName}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4">
-                      {s.class} - <span className="font-semibold text-slate-700">{s.section}</span>
-                    </td>
                     <td className="py-3.5 px-4 font-mono text-xs text-slate-500">
                       <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                         {s.qrCodeValue}
