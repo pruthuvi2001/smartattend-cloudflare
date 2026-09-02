@@ -44,7 +44,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({
         class: studentClass.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        qrCodeValue: (qrCodeValue.trim() || studentId.trim()).toUpperCase(),
+        qrCodeValue: qrCodeValue.trim() || `{"std_ID":"${studentId.trim().toUpperCase()}"}`,
         status,
       });
     } catch (err: any) {
@@ -66,9 +66,10 @@ export const StudentForm: React.FC<StudentFormProps> = ({
           placeholder="e.g. STU001"
           value={studentId}
           onChange={(e) => {
-            setStudentId(e.target.value);
-            if (!initialData && !qrCodeValue) {
-              setQrCodeValue(e.target.value);
+            const val = e.target.value;
+            setStudentId(val);
+            if (!initialData) {
+              setQrCodeValue(val ? `{"std_ID":"${val.toUpperCase()}"}` : "");
             }
           }}
           disabled={!!initialData}
@@ -128,7 +129,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({
           placeholder="Defaults to Student ID"
           value={qrCodeValue}
           onChange={(e) => setQrCodeValue(e.target.value)}
-          helperText="Unique identifier encoded in the physical card QR."
+          helperText='Auto-generated as {"std_ID":"..."} — edit only if using a custom format.'
         />
 
         <Select
