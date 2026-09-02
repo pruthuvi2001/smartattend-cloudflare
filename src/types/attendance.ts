@@ -7,7 +7,7 @@ export interface AttendanceRecord {
   studentId: string;
   studentNameSnapshot: string;
   classSnapshot: string;
-  sectionSnapshot: string;
+  sectionSnapshot?: string;
   date: string;                // Normalized YYYY-MM-DD in institution timezone
   timestamp: string;           // ISO 8601 string or epoch
   timeFormatted: string;       // Formatted 12-hour string (e.g., "08:32 AM")
@@ -23,7 +23,7 @@ export interface DailyAttendanceRow {
   studentId: string;
   fullName: string;
   class: string;
-  section: string;
+  section?: string;
   status: AttendanceStatus;
   timeFormatted?: string;
   markedByName?: string;

@@ -49,8 +49,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
               studentId: parts[0].toUpperCase(),
               fullName: parts[1] || `Student ${parts[0]}`,
               class: parts[2] || "Grade 10",
-              section: parts[3] || "A",
-              qrCodeValue: (parts[4] || parts[0]).toUpperCase(),
+              qrCodeValue: (parts[3] || parts[0]).toUpperCase(),
               status: "ACTIVE",
             });
           }
@@ -91,10 +90,10 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
           <p className="font-semibold text-slate-800 mb-1">Expected CSV Column Order:</p>
           <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-[11px]">
-            studentId, fullName, class, section, qrCodeValue
+            studentId, fullName, class, qrCodeValue
           </code>
           <p className="mt-1 text-slate-500">
-            Example: <span className="font-mono">STU011, Alex Morgan, Grade 10, A, STU011</span>
+            Example: <span className="font-mono">STU011, Alex Morgan, Grade 10, STU011</span>
           </p>
         </div>
 
@@ -134,7 +133,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                 <div key={idx} className="p-2 flex items-center justify-between">
                   <span className="font-mono font-bold text-indigo-600">{row.studentId}</span>
                   <span className="font-medium text-slate-800">{row.fullName}</span>
-                  <span className="text-slate-500">{row.class} - {row.section}</span>
+                  <span className="text-slate-500">{row.class}</span>
                 </div>
               ))}
               {parsedRows.length > 5 && (

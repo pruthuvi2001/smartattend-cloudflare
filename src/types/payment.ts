@@ -22,7 +22,7 @@ export interface MonthlyFeeRecord {
   studentId: string;
   studentNameSnapshot: string;
   classSnapshot: string;
-  sectionSnapshot: string;
+  sectionSnapshot?: string;
   monthKey: string;           // Normalized YYYY-MM (e.g., "2026-09")
   monthName: string;          // e.g., "September 2026"
   monthlyFee: number;         // e.g., 5000

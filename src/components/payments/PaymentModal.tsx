@@ -144,7 +144,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               ...students
                 .filter((s) => s.status === "ACTIVE")
                 .map((s) => ({
-                  label: `${s.studentId} - ${s.fullName} (${s.class} ${s.section})`,
+                  label: `${s.studentId} - ${s.fullName} (${s.class})`,
                   value: s.studentId,
                 })),
             ]}
@@ -158,7 +158,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {initialRecord?.studentNameSnapshot || selectedStudent?.fullName}
               </h4>
               <p className="text-xs text-slate-500 font-mono">
-                {selectedStudentId} • {initialRecord?.classSnapshot || selectedStudent?.class} {initialRecord?.sectionSnapshot || selectedStudent?.section}
+                {selectedStudentId} • {initialRecord?.classSnapshot || selectedStudent?.class}
               </p>
             </div>
             <div className="text-right">

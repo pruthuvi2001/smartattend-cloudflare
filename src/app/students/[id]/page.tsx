@@ -187,7 +187,7 @@ export default function StudentDetailPage() {
                   </Badge>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Student ID: <span className="font-mono font-bold text-slate-700">{student.studentId}</span> • Class: {student.class} - {student.section}
+                  Student ID: <span className="font-mono font-bold text-slate-700">{student.studentId}</span> • Class: {student.class}
                 </p>
               </div>
             </div>

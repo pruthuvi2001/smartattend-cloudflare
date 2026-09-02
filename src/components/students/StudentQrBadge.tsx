@@ -97,14 +97,10 @@ export const StudentQrBadge: React.FC<StudentQrBadgeProps> = ({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 w-full text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-1 gap-2 w-full text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200">
             <div>
               <span className="text-[10px] text-slate-400 block font-semibold uppercase">Class</span>
               <strong>{student.class}</strong>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block font-semibold uppercase">Section</span>
-              <strong>{student.section}</strong>
             </div>
           </div>
 

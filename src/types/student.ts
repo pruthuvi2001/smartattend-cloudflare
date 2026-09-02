@@ -4,7 +4,6 @@ export interface Student {
   studentId: string; // Unique Primary ID (e.g. STU001)
   fullName: string;
   class: string;     // e.g. "Grade 10"
-  section: string;   // e.g. "A"
   email?: string;
   phone?: string;
   photoUrl?: string;
@@ -18,7 +17,6 @@ export interface StudentFormData {
   studentId: string;
   fullName: string;
   class: string;
-  section: string;
   email?: string;
   phone?: string;
   photoUrl?: string;

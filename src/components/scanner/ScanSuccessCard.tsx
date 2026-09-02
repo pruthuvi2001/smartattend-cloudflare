@@ -79,7 +79,7 @@ export const ScanSuccessCard: React.FC<ScanSuccessCardProps> = ({
             </div>
             <div>
               <p className="text-[11px] text-emerald-200 font-medium">Class / Section</p>
-              <p className="text-sm font-bold text-white">{student?.class} - {student?.section}</p>
+              <p className="text-sm font-bold text-white">{student?.class}</p>
             </div>
           </div>
 
@@ -159,7 +159,7 @@ export const ScanSuccessCard: React.FC<ScanSuccessCardProps> = ({
             </div>
             <div>
               <p className="text-amber-100">Class</p>
-              <p className="font-bold text-white">{student?.class} - {student?.section}</p>
+              <p className="font-bold text-white">{student?.class}</p>
             </div>
           </div>
 
