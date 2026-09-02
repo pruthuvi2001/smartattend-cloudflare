@@ -85,7 +85,7 @@ export default function LoginPage() {
           <School className="w-8 h-8" />
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">
-          Wisdom English Academy
+          WISDOM
         </h2>
         <p className="mt-1.5 text-xs sm:text-sm text-slate-300">
           Powered By Banana Kingdom. 
@@ -158,7 +158,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick Demo Access Bar (Disabled) */}
+          {/* Quick Demo Access Bar — DISABLED / HIDDEN FOR NOW
           <div className="mt-6 pt-6 border-t border-white/10">
             <p className="text-center text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-slate-400" />
@@ -189,6 +189,7 @@ export default function LoginPage() {
               </Button>
             </div>
           </div>
+          */}
         </div>
 
         {/* Footer Note */}
