@@ -127,10 +127,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick Demo Access Bar */}
+          {/* Quick Demo Access Bar (Disabled) */}
           <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center justify-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <p className="text-center text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-slate-300" />
               Quick Evaluation Access
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -138,9 +138,10 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled
                 onClick={() => handleDemoLogin("ADMIN")}
-                className="text-xs bg-slate-50 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
-                leftIcon={<ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />}
+                className="text-xs bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed"
+                leftIcon={<ShieldCheck className="w-3.5 h-3.5 text-slate-400" />}
               >
                 Admin Role
               </Button>
@@ -148,9 +149,10 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled
                 onClick={() => handleDemoLogin("STAFF")}
-                className="text-xs bg-slate-50 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
-                leftIcon={<UserCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                className="text-xs bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed"
+                leftIcon={<UserCheck className="w-3.5 h-3.5 text-slate-400" />}
               >
                 Staff Role
               </Button>
