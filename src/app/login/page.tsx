@@ -193,8 +193,10 @@ export default function LoginPage() {
         </div>
 
         {/* Footer Note */}
-        <p className="mt-6 text-center text-xs text-slate-300 drop-shadow">
-          Equipped with Atomic Duplicate Prevention & Camera QR Scanning.
+        <p className="mt-6 text-center text-xs text-slate-300 drop-shadow italic">
+          "Wisdom is not a product of schooling but of the lifelong attempt to acquire it."
+          <br />
+          <span className="not-italic text-slate-400">— Albert Einstein</span>
         </p>
       </div>
     </div>
