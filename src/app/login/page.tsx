@@ -57,70 +57,101 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Subtle Gradient Blobs */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Fullscreen Video Background */}
+      <div className="absolute inset-0 z-0 bg-slate-950">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover opacity-70"
+          poster="/videos/login-bg-poster.jpg"
+        >
+          <source src="/videos/login-bg.webm" type="video/webm" />
+          <source src="/videos/login-bg.mp4" type="video/mp4" />
+        </video>
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/80" />
+      </div>
+
+      {/* Ambient glow blobs on top of video for extra depth */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none z-[1]" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none z-[1]" />
 
       {/* Header Container */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10">
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-600/40 mb-4">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10 relative">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-indigo-600/90 backdrop-blur-sm flex items-center justify-center text-white shadow-xl shadow-indigo-600/40 mb-4 border border-white/20">
           <School className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">
           MathLAbs
         </h2>
-        <p className="mt-1.5 text-xs sm:text-sm text-slate-400">
+        <p className="mt-1.5 text-xs sm:text-sm text-slate-300">
           Powered By Banana Kingdom. 
         </p>
       </div>
 
-      {/* Card Container */}
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 z-10">
-        <div className="bg-white py-8 px-6 sm:px-8 shadow-2xl rounded-2xl border border-slate-200">
+      {/* Liquid Glass Card Container */}
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 z-10 relative">
+        <div className="bg-white/10 backdrop-blur-2xl py-8 px-6 sm:px-8 shadow-2xl rounded-2xl border border-white/20 ring-1 ring-white/10">
           <form onSubmit={handleSubmit} className="space-y-4">
             {errorMsg && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl">
+              <div className="p-3 bg-rose-500/20 backdrop-blur-sm border border-rose-400/30 text-rose-100 text-xs font-semibold rounded-xl">
                 {errorMsg}
               </div>
             )}
 
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="admin@smartattend.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              leftIcon={<Mail className="w-4 h-4" />}
-              required
-              autoFocus
-            />
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-200 mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  placeholder="admin@smartattend.edu"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/60 focus:border-indigo-300/50 transition-colors"
+                />
+              </div>
+            </div>
 
             <div>
-              <Input
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                leftIcon={<Lock className="w-4 h-4" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="focus:outline-none hover:text-slate-700"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                }
-                required
-              />
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-200 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/60 focus:border-indigo-300/50 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <Button
               type="submit"
               variant="primary"
-              className="w-full py-2.5 font-bold shadow-md shadow-indigo-600/20"
+              className="w-full py-2.5 font-bold shadow-md shadow-indigo-600/30"
               isLoading={isLoading}
             >
               Sign In
@@ -128,9 +159,9 @@ export default function LoginPage() {
           </form>
 
           {/* Quick Demo Access Bar (Disabled) */}
-          <div className="mt-6 pt-6 border-t border-slate-100">
+          <div className="mt-6 pt-6 border-t border-white/10">
             <p className="text-center text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-slate-300" />
+              <Sparkles className="w-3.5 h-3.5 text-slate-400" />
               Quick Evaluation Access
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -140,7 +171,7 @@ export default function LoginPage() {
                 size="sm"
                 disabled
                 onClick={() => handleDemoLogin("ADMIN")}
-                className="text-xs bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed"
+                className="text-xs bg-white/5 border-white/10 text-slate-400 opacity-50 cursor-not-allowed"
                 leftIcon={<ShieldCheck className="w-3.5 h-3.5 text-slate-400" />}
               >
                 Admin Role
@@ -151,7 +182,7 @@ export default function LoginPage() {
                 size="sm"
                 disabled
                 onClick={() => handleDemoLogin("STAFF")}
-                className="text-xs bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed"
+                className="text-xs bg-white/5 border-white/10 text-slate-400 opacity-50 cursor-not-allowed"
                 leftIcon={<UserCheck className="w-3.5 h-3.5 text-slate-400" />}
               >
                 Staff Role
@@ -161,7 +192,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer Note */}
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-xs text-slate-300 drop-shadow">
           Equipped with Atomic Duplicate Prevention & Camera QR Scanning.
         </p>
       </div>
