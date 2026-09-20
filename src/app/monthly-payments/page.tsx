@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -25,8 +25,9 @@ import { PaymentDetailsModal } from "@/components/payments/PaymentDetailsModal";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
-import { PlusCircle, Download, RefreshCw, Receipt } from "lucide-react";
+import { PlusCircle, Download, RefreshCw, Receipt, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { exportMonthlyPaymentsToPdf } from "@/lib/payments/pdfExport";
 
 export default function MonthlyPaymentsPage() {
   const { userProfile, user } = useAuth();
@@ -166,6 +167,21 @@ export default function MonthlyPaymentsPage() {
     toast.success("CSV Exported", `Monthly payments exported successfully.`);
   };
 
+  const handleExportPdf = () => {
+    if (records.length === 0) {
+      toast.warning("No Data", "No payment records to export.");
+      return;
+    }
+    exportMonthlyPaymentsToPdf({
+      records,
+      monthName: formatMonthName(selectedMonthKey),
+      currencySymbol: settings.currencySymbol || "Rs.",
+      schoolName: settings.schoolName,
+      classFilter: "ALL",
+    });
+    toast.success("PDF Exported", `Saved official monthly payments report.`);
+  };
+
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -194,6 +210,15 @@ export default function MonthlyPaymentsPage() {
                 leftIcon={<Download className="w-3.5 h-3.5" />}
               >
                 Export CSV
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPdf}
+                leftIcon={<FileText className="w-3.5 h-3.5 text-rose-600" />}
+              >
+                Export PDF
               </Button>
 
               <Button
@@ -228,6 +253,8 @@ export default function MonthlyPaymentsPage() {
           <StudentPaymentTable
             records={records}
             currencySymbol={settings.currencySymbol || "Rs."}
+            monthName={formatMonthName(selectedMonthKey)}
+            schoolName={settings.schoolName}
             onViewDetails={(rec) => {
               setActiveDetailsRecord(rec);
               setDetailsModalOpen(true);

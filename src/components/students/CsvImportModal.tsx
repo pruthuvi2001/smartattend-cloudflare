@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
@@ -45,11 +45,23 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
         for (let i = 1; i < lines.length; i++) {
           const parts = lines[i].split(",").map((p) => p.replace(/^"|"$/g, "").trim());
           if (parts.length >= 2 && parts[0]) {
+            const sid = parts[0].toUpperCase();
+            // Check if 5th column or 4th column is email
+            let email = "";
+            if (parts[4] && parts[4].includes("@")) {
+              email = parts[4];
+            } else if (parts[3] && parts[3].includes("@")) {
+              email = parts[3];
+            } else {
+              email = `${sid.toLowerCase()}@smartattend.edu`;
+            }
+
             dataRows.push({
-              studentId: parts[0].toUpperCase(),
-              fullName: parts[1] || `Student ${parts[0]}`,
+              studentId: sid,
+              fullName: parts[1] || `Student ${sid}`,
               class: parts[2] || "Grade 10",
-              qrCodeValue: (parts[3] || parts[0]).toUpperCase(),
+              qrCodeValue: (parts[3] && !parts[3].includes("@") ? parts[3] : sid).toUpperCase(),
+              email,
               status: "ACTIVE",
             });
           }
@@ -90,10 +102,10 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
           <p className="font-semibold text-slate-800 mb-1">Expected CSV Column Order:</p>
           <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-[11px]">
-            studentId, fullName, class, qrCodeValue
+            studentId, fullName, class, qrCodeValue, email
           </code>
           <p className="mt-1 text-slate-500">
-            Example: <span className="font-mono">STU011, Alex Morgan, Grade 10, STU011</span>
+            Example: <span className="font-mono">STU011, Alex Morgan, Grade 10, STU011, alex.m@smartattend.edu</span>
           </p>
         </div>
 

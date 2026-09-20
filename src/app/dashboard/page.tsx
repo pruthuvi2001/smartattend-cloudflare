@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getStudents, seedSampleStudents } from "@/lib/students/studentService";
 import { getAttendanceForDate } from "@/lib/attendance/attendanceService";
+import { evaluateAndMarkAutoAbsences } from "@/lib/attendance/autoAbsenceService";
 import { calculateDailyReport } from "@/lib/attendance/attendanceStats";
 import { getNormalizedDate, formatDisplayDate } from "@/lib/utils/dateUtils";
 import { getSystemSettings } from "@/lib/settings/settingsService";
@@ -54,6 +55,9 @@ export default function DashboardPage() {
       setLoading(true);
       const appSettings = await getSystemSettings();
       setSettings(appSettings);
+
+      // Lazily evaluate and backfill auto-absences for ended timetable sessions
+      await evaluateAndMarkAutoAbsences();
 
       const studentList = await getStudents();
       setStudents(studentList);

@@ -1,4 +1,4 @@
-﻿import { AttendanceRecord, AttendanceStats, DailyAttendanceRow } from "@/types/attendance";
+import { AttendanceRecord, AttendanceStats, DailyAttendanceRow } from "@/types/attendance";
 import { Student } from "@/types/student";
 
 /**
@@ -47,6 +47,7 @@ export function calculateDailyReport(
         timeFormatted: rec.timeFormatted,
         markedByName: rec.markedByName,
         method: rec.method,
+        autoMarked: rec.autoMarked || false,
         date: selectedDate,
       });
     } else {
@@ -61,6 +62,7 @@ export function calculateDailyReport(
           status: "ABSENT",
           timeFormatted: "--:-- --",
           markedByName: "System",
+          autoMarked: true,
           date: selectedDate,
         });
       }

@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { School, Globe, Clock, Sparkles, Trash2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { ClassScheduleManager } from "@/components/classes/ClassScheduleManager";
 
 export default function SettingsPage() {
   const { userProfile } = useAuth();
@@ -204,6 +205,11 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+
+          {/* Class Timetable & Schedule Management */}
+          <Card className="p-6 bg-white">
+            <ClassScheduleManager />
+          </Card>
 
           {/* Development & Seed Data Management */}
           <Card className="border-amber-200 bg-amber-50/40">

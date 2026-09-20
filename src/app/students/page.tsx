@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -16,6 +16,7 @@ import { Student, StudentFormData } from "@/types/student";
 import { StudentTable } from "@/components/students/StudentTable";
 import { StudentForm } from "@/components/students/StudentForm";
 import { CsvImportModal } from "@/components/students/CsvImportModal";
+import { MissingEmailBanner } from "@/components/students/MissingEmailBanner";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { exportStudentsToCsv } from "@/lib/utils/csvExport";
@@ -170,6 +171,9 @@ export default function StudentsPage() {
               </Button>
             </div>
           </div>
+
+          {/* Missing Email Migration Banner */}
+          <MissingEmailBanner students={students} onUpdated={loadStudents} />
 
           {/* Table */}
           <StudentTable

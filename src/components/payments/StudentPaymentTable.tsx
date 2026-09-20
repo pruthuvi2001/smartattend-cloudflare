@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { MonthlyFeeRecord } from "@/types/payment";
@@ -6,12 +6,15 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Search } from "lucide-react";
+import { Search, FileText, Download } from "lucide-react";
 import { formatDisplayDate } from "@/lib/utils/dateUtils";
+import { exportMonthlyPaymentsToPdf } from "@/lib/payments/pdfExport";
 
 export interface StudentPaymentTableProps {
   records: MonthlyFeeRecord[];
   currencySymbol?: string;
+  monthName?: string;
+  schoolName?: string;
   onViewDetails: (record: MonthlyFeeRecord) => void;
   onRecordPayment: (record: MonthlyFeeRecord) => void;
 }
@@ -19,6 +22,8 @@ export interface StudentPaymentTableProps {
 export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
   records,
   currencySymbol = "Rs.",
+  monthName = "Current Month",
+  schoolName = "SmartAttend Academy",
   onViewDetails,
   onRecordPayment,
 }) => {
@@ -29,6 +34,16 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
   const pageSize = 10;
 
   const classes = Array.from(new Set(records.map((r) => r.classSnapshot))).sort();
+
+  const handleExportPdf = () => {
+    exportMonthlyPaymentsToPdf({
+      records,
+      monthName,
+      currencySymbol,
+      schoolName,
+      classFilter,
+    });
+  };
 
   const filtered = records.filter((r) => {
     const matchesSearch =
@@ -60,43 +75,65 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <Input
-          placeholder="Search students..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          leftIcon={<Search className="w-4 h-4" />}
-        />
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Input
+            placeholder="Search students..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            leftIcon={<Search className="w-4 h-4" />}
+          />
 
-        <Select
-          value={classFilter}
-          onChange={(e) => {
-            setClassFilter(e.target.value);
-            setCurrentPage(1);
-          }}
-          options={[
-            { label: "All Classes", value: "ALL" },
-            ...classes.map((c) => ({ label: c, value: c })),
-          ]}
-        />
+          <Select
+            label="Filter Class"
+            value={classFilter}
+            onChange={(e) => {
+              setClassFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            options={[
+              { label: "All Classes", value: "ALL" },
+              ...classes.map((c) => ({ label: c, value: c })),
+            ]}
+          />
 
-        <Select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setCurrentPage(1);
-          }}
-          options={[
-            { label: "All Statuses", value: "ALL" },
-            { label: "Paid Only", value: "PAID" },
-            { label: "Partially Paid", value: "PARTIALLY_PAID" },
-            { label: "Unpaid Only", value: "UNPAID" },
-            { label: "Waived Only", value: "WAIVED" },
-          ]}
-        />
+          <Select
+            label="Filter Status"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            options={[
+              { label: "All Statuses", value: "ALL" },
+              { label: "Paid Only", value: "PAID" },
+              { label: "Partially Paid", value: "PARTIALLY_PAID" },
+              { label: "Unpaid Only", value: "UNPAID" },
+              { label: "Waived Only", value: "WAIVED" },
+            ]}
+          />
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <span className="text-xs text-slate-500 font-medium">
+            Showing {filtered.length} of {records.length} students {classFilter !== "ALL" ? `in ${classFilter}` : ""}
+          </span>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              leftIcon={<FileText className="w-3.5 h-3.5 text-rose-600" />}
+              className="text-xs font-semibold"
+            >
+              Export PDF {classFilter !== "ALL" ? `(${classFilter})` : ""}
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

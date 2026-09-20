@@ -18,6 +18,7 @@ import {
 } from "@/types/payment";
 import { getStudents, getStudentById } from "../students/studentService";
 import { formatDisplayDate, format12HourTime, DEFAULT_TIMEZONE } from "../utils/dateUtils";
+import { sendPaymentEmailNotification } from "../notifications/emailService";
 
 const COLLECTION_NAME = "feeRecords";
 const LOCAL_STORAGE_KEY = "smartattend_local_fees";
@@ -339,6 +340,13 @@ export async function recordStudentPayment(input: RecordPaymentInput): Promise<M
     local.push(updatedRecord);
   }
   saveLocalFees(local);
+
+  // Send student email receipt (async fire-and-forget)
+  sendPaymentEmailNotification({
+    student,
+    feeRecord: updatedRecord,
+    transaction: newTx,
+  });
 
   return updatedRecord;
 }

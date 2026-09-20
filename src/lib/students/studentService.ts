@@ -1,4 +1,4 @@
-﻿import {
+import {
   collection,
   doc,
   getDoc,
@@ -139,6 +139,15 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     throw new Error(`Student with ID "${studentId}" already exists.`);
   }
 
+  const email = formData.email?.trim();
+  if (!email) {
+    throw new Error("Student email address is required for notifications.");
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new Error("Please enter a valid email address (e.g., student@example.com).");
+  }
+
   const qrCodeValue = formData.qrCodeValue?.trim() || studentId;
   const now = new Date().toISOString();
 
@@ -146,7 +155,7 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     studentId,
     fullName: formData.fullName.trim(),
     class: formData.class.trim(),
-    email: formData.email?.trim() || "",
+    email,
     phone: formData.phone?.trim() || "",
     photoUrl: formData.photoUrl?.trim() || "",
     qrCodeValue,
@@ -176,6 +185,18 @@ export async function updateStudent(studentId: string, data: Partial<Student>): 
   const id = studentId.trim().toUpperCase();
   const now = new Date().toISOString();
 
+  if (data.email !== undefined) {
+    const email = data.email.trim();
+    if (!email) {
+      throw new Error("Student email address is required.");
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error("Please enter a valid email address (e.g., student@example.com).");
+    }
+    data.email = email;
+  }
+
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
     await updateDoc(docRef, { ...data, updatedAt: now });
@@ -189,6 +210,17 @@ export async function updateStudent(studentId: string, data: Partial<Student>): 
     local[idx] = { ...local[idx], ...data, updatedAt: now };
     saveLocalStudents(local);
   }
+}
+
+/**
+ * Returns all active students who are missing an email or have an invalid email.
+ */
+export async function getStudentsMissingEmail(): Promise<Student[]> {
+  const students = await getStudents();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return students.filter(
+    (s) => !s.email || !s.email.trim() || !emailRegex.test(s.email.trim())
+  );
 }
 
 /**

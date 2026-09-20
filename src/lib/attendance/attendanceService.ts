@@ -1,4 +1,4 @@
-﻿import {
+import {
   collection,
   doc,
   getDoc,
@@ -14,6 +14,7 @@ import { Student } from "@/types/student";
 import { parseStudentQrPayload } from "../utils/qrUtils";
 import { getStudentByQrCode, getStudentById } from "../students/studentService";
 import { getNormalizedDate, format12HourTime, DEFAULT_TIMEZONE } from "../utils/dateUtils";
+import { sendAttendanceEmailNotification } from "../notifications/emailService";
 
 const COLLECTION_NAME = "attendance";
 const LOCAL_STORAGE_KEY = "smartattend_local_attendance";
@@ -142,6 +143,12 @@ export async function recordAttendanceByQr(
   localList.push(newRecord);
   saveLocalAttendance(localList);
 
+  // Send student email alert (async fire-and-forget)
+  sendAttendanceEmailNotification({
+    student,
+    record: newRecord,
+  });
+
   return {
     status: "SUCCESS",
     student,
@@ -197,6 +204,12 @@ export async function markAttendanceManually(
     localList.push(record);
   }
   saveLocalAttendance(localList);
+
+  // Send student email alert (async fire-and-forget)
+  sendAttendanceEmailNotification({
+    student,
+    record,
+  });
 
   return record;
 }

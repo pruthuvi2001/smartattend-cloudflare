@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { Student, StudentFormData } from "@/types/student";
@@ -37,12 +37,24 @@ export const StudentForm: React.FC<StudentFormProps> = ({
       return;
     }
 
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("Email address is required to send attendance and payment notifications.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address (e.g., student@example.com).");
+      return;
+    }
+
     try {
       await onSubmit({
         studentId: studentId.trim().toUpperCase(),
         fullName: fullName.trim(),
         class: studentClass.trim(),
-        email: email.trim(),
+        email: trimmedEmail,
         phone: phone.trim(),
         qrCodeValue: qrCodeValue.trim() || `{"std_ID":"${studentId.trim().toUpperCase()}"}`,
         status,
@@ -108,11 +120,13 @@ export const StudentForm: React.FC<StudentFormProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          label="Email (Optional)"
+          label="Email Address *"
           type="email"
           placeholder="student@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
+          helperText="Required for automated attendance and payment notifications"
         />
 
         <Input

@@ -16,6 +16,7 @@ export interface AttendanceRecord {
   markedByName: string;        // Staff Display Name
   method: AttendanceMethod;
   deviceId?: string;
+  autoMarked?: boolean;        // True if automatically marked by scheduled time window evaluator
   createdAt: string;
 }
 
@@ -28,6 +29,7 @@ export interface DailyAttendanceRow {
   timeFormatted?: string;
   markedByName?: string;
   method?: AttendanceMethod;
+  autoMarked?: boolean;        // True if automatically marked
   date: string;
 }
 

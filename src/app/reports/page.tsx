@@ -26,8 +26,9 @@ import { MonthSelector } from "@/components/payments/MonthSelector";
 import { PaymentSummaryCards } from "@/components/payments/PaymentSummaryCards";
 import { StudentPaymentTable } from "@/components/payments/StudentPaymentTable";
 import { Button } from "@/components/ui/Button";
-import { Download, Printer, Calendar, RefreshCw, Receipt } from "lucide-react";
+import { Download, Printer, Calendar, RefreshCw, Receipt, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { exportMonthlyPaymentsToPdf } from "@/lib/payments/pdfExport";
 
 export default function ReportsPage() {
   const [reportTab, setReportTab] = useState<"attendance" | "payments">("attendance");
@@ -142,6 +143,25 @@ export default function ReportsPage() {
     window.print();
   };
 
+  const handleExportPdf = () => {
+    if (reportTab === "payments") {
+      if (feeRecords.length === 0) {
+        toast.warning("No Data", "No payment records to export.");
+        return;
+      }
+      exportMonthlyPaymentsToPdf({
+        records: feeRecords,
+        monthName: formatMonthName(selectedMonthKey),
+        currencySymbol: settings.currencySymbol || "Rs.",
+        schoolName: settings.schoolName,
+        classFilter: "ALL",
+      });
+      toast.success("PDF Exported", `Saved official monthly payments report.`);
+    } else {
+      window.print();
+    }
+  };
+
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -167,12 +187,20 @@ export default function ReportsPage() {
                 Print Report
               </Button>
               <Button
-                variant="primary"
+                variant="outline"
                 size="sm"
                 onClick={handleExportCsv}
                 leftIcon={<Download className="w-3.5 h-3.5" />}
               >
                 Export CSV
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleExportPdf}
+                leftIcon={<FileText className="w-3.5 h-3.5" />}
+              >
+                Export PDF
               </Button>
             </div>
           </div>
@@ -265,6 +293,8 @@ export default function ReportsPage() {
               <StudentPaymentTable
                 records={feeRecords}
                 currencySymbol={settings.currencySymbol || "Rs."}
+                monthName={formatMonthName(selectedMonthKey)}
+                schoolName={settings.schoolName}
                 onViewDetails={() => {}}
                 onRecordPayment={() => {}}
               />
