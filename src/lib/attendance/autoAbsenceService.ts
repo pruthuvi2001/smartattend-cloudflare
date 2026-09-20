@@ -109,11 +109,17 @@ export async function evaluateAndMarkAutoAbsences(
     if (matchingSessions.length === 0) continue;
     evaluatedSessionsCount += matchingSessions.length;
 
-    // Find students enrolled in this class (case-insensitive)
-    const classStudents = activeStudents.filter(
-      (s) =>
-        s.class.trim().toLowerCase() === classEntity.name.trim().toLowerCase()
-    );
+    // Find students enrolled in this class entity (using relational classIds)
+    const classStudents = activeStudents.filter((s) => {
+      if (s.classIds && s.classIds.includes(classEntity.id)) return true;
+      if (
+        s.classDisplayNames &&
+        s.classDisplayNames.map((n) => n.trim().toLowerCase()).includes(classEntity.name.trim().toLowerCase())
+      ) {
+        return true;
+      }
+      return s.class ? s.class.trim().toLowerCase() === classEntity.name.trim().toLowerCase() : false;
+    });
 
     for (const student of classStudents) {
       const studentId = student.studentId.toUpperCase();
@@ -127,7 +133,8 @@ export async function evaluateAndMarkAutoAbsences(
         attendanceId,
         studentId,
         studentNameSnapshot: student.fullName,
-        classSnapshot: student.class,
+        classId: classEntity.id,
+        classSnapshot: classEntity.name,
         date: todayDateStr,
         timestamp: new Date().toISOString(),
         timeFormatted: "--:-- --",

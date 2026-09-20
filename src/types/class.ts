@@ -25,8 +25,9 @@ export interface ClassScheduleEntry {
 }
 
 export interface ClassEntity {
-  id: string;
-  name: string;      // e.g. "Grade 6"
+  id: string;          // e.g. "grade-6"
+  name: string;        // e.g. "Grade 6"
+  monthlyFee?: number; // Optional custom monthly fee for this class
   schedules: ClassScheduleEntry[];
   createdAt: string;
   updatedAt: string;

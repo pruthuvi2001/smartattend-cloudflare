@@ -3,9 +3,10 @@ export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE';
 export type AttendanceMethod = 'QR_SCAN' | 'MANUAL';
 
 export interface AttendanceRecord {
-  attendanceId: string;        // Deterministic format: `${studentId}_${date}`
+  attendanceId: string;        // Deterministic format: `${studentId}_${classId || 'default'}_${date}`
   studentId: string;
   studentNameSnapshot: string;
+  classId?: string;            // Primary key of linked ClassEntity
   classSnapshot: string;
   sectionSnapshot?: string;
   date: string;                // Normalized YYYY-MM-DD in institution timezone
@@ -23,6 +24,7 @@ export interface AttendanceRecord {
 export interface DailyAttendanceRow {
   studentId: string;
   fullName: string;
+  classId?: string;
   class: string;
   section?: string;
   status: AttendanceStatus;

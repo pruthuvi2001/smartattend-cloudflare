@@ -151,10 +151,23 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
   const qrCodeValue = formData.qrCodeValue?.trim() || studentId;
   const now = new Date().toISOString();
 
+  // Resolve classIds and classDisplayNames
+  const classIds = formData.classIds && formData.classIds.length > 0
+    ? formData.classIds
+    : [formData.class ? formData.class.trim().toLowerCase().replace(/\s+/g, "-") : "grade-10"];
+
+  const classDisplayNames = formData.classDisplayNames && formData.classDisplayNames.length > 0
+    ? formData.classDisplayNames
+    : [formData.class || "Grade 10"];
+
+  const primaryClass = classDisplayNames[0] || formData.class || "Grade 10";
+
   const newStudent: Student = {
     studentId,
     fullName: formData.fullName.trim(),
-    class: formData.class.trim(),
+    class: primaryClass,
+    classIds,
+    classDisplayNames,
     email,
     phone: formData.phone?.trim() || "",
     photoUrl: formData.photoUrl?.trim() || "",

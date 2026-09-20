@@ -56,10 +56,15 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
               email = `${sid.toLowerCase()}@smartattend.edu`;
             }
 
+            const className = parts[2] || "Grade 10";
+            const classId = className.trim().toLowerCase().replace(/\s+/g, "-");
+
             dataRows.push({
               studentId: sid,
               fullName: parts[1] || `Student ${sid}`,
-              class: parts[2] || "Grade 10",
+              class: className,
+              classIds: [classId],
+              classDisplayNames: [className],
               qrCodeValue: (parts[3] && !parts[3].includes("@") ? parts[3] : sid).toUpperCase(),
               email,
               status: "ACTIVE",

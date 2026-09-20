@@ -23,6 +23,8 @@ import { exportStudentsToCsv } from "@/lib/utils/csvExport";
 import { UserPlus, Upload, Download, Sparkles, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
+import { autoMigrateLegacyClasses } from "@/lib/migration/classMigration";
+
 export default function StudentsPage() {
   const { isAdmin } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
@@ -37,6 +39,7 @@ export default function StudentsPage() {
   const loadStudents = async () => {
     try {
       setLoading(true);
+      await autoMigrateLegacyClasses();
       const list = await getStudents();
       setStudents(list);
     } catch (err) {

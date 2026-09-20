@@ -1,7 +1,7 @@
-"use client";
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DailyAttendanceRow } from "@/types/attendance";
+import { ClassEntity } from "@/types/class";
+import { getClasses } from "@/lib/classes/classService";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -20,11 +20,21 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({ rows }) => {
   const [studentFilter, setStudentFilter] = useState("ALL");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [availableClasses, setAvailableClasses] = useState<ClassEntity[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  // Extract unique classes
-  const classes = Array.from(new Set(rows.map((r) => r.class))).filter(Boolean).sort();
+  useEffect(() => {
+    getClasses().then((list) => setAvailableClasses(list));
+  }, []);
+
+  // Extract unique classes (from dynamic class Entities + current rows)
+  const classOptions = Array.from(
+    new Set([
+      ...availableClasses.map((c) => c.name),
+      ...rows.map((r) => r.class),
+    ])
+  ).filter(Boolean).sort();
 
   // Extract students for the student-filter dropdown (optionally scoped to selected class)
   const availableStudents = Array.from(
@@ -111,7 +121,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({ rows }) => {
             }}
             options={[
               { label: "All Classes", value: "ALL" },
-              ...classes.map((c) => ({ label: c, value: c })),
+              ...classOptions.map((c) => ({ label: c, value: c })),
             ]}
           />
 

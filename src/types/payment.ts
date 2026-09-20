@@ -1,4 +1,4 @@
-﻿export type PaymentStatus = 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'WAIVED';
+export type PaymentStatus = 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'WAIVED';
 
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'OTHER';
 
@@ -6,6 +6,7 @@ export interface PaymentTransaction {
   paymentId: string;
   feeRecordId: string;
   studentId: string;
+  classId?: string;
   amount: number;
   paymentDate: string;        // e.g. "2026-09-05"
   paymentDateFormatted: string; // e.g. "05 Sep 2026"
@@ -18,9 +19,10 @@ export interface PaymentTransaction {
 }
 
 export interface MonthlyFeeRecord {
-  feeRecordId: string;        // Format: `${studentId}_${monthKey}` (e.g., "STU001_2026-09")
+  feeRecordId: string;        // Format: `${studentId}_${classId || 'default'}_${monthKey}`
   studentId: string;
   studentNameSnapshot: string;
+  classId?: string;           // Linked ClassEntity ID
   classSnapshot: string;
   sectionSnapshot?: string;
   monthKey: string;           // Normalized YYYY-MM (e.g., "2026-09")

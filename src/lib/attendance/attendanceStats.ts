@@ -41,7 +41,7 @@ export function calculateDailyReport(
       rows.push({
         studentId: student.studentId,
         fullName: rec.studentNameSnapshot || student.fullName,
-        class: rec.classSnapshot || student.class,
+        class: rec.classSnapshot || student.class || student.classDisplayNames?.[0] || "Grade 10",
         section: rec.sectionSnapshot || "",
         status: rec.status,
         timeFormatted: rec.timeFormatted,
@@ -57,7 +57,7 @@ export function calculateDailyReport(
         rows.push({
           studentId: student.studentId,
           fullName: student.fullName,
-          class: student.class,
+          class: student.class || student.classDisplayNames?.[0] || "Grade 10",
           section: "",
           status: "ABSENT",
           timeFormatted: "--:-- --",

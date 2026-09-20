@@ -5,6 +5,7 @@ import { Student, StudentFormData } from "@/types/student";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { ClassPicker } from "./ClassPicker";
 
 export interface StudentFormProps {
   initialData?: Student;
@@ -21,7 +22,16 @@ export const StudentForm: React.FC<StudentFormProps> = ({
 }) => {
   const [studentId, setStudentId] = useState(initialData?.studentId || "");
   const [fullName, setFullName] = useState(initialData?.fullName || "");
-  const [studentClass, setStudentClass] = useState(initialData?.class || "Grade 10");
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>(
+    initialData?.classIds && initialData.classIds.length > 0
+      ? initialData.classIds
+      : [initialData?.class ? initialData.class.toLowerCase().replace(/\s+/g, "-") : "grade-10"]
+  );
+  const [selectedDisplayNames, setSelectedDisplayNames] = useState<string[]>(
+    initialData?.classDisplayNames && initialData.classDisplayNames.length > 0
+      ? initialData.classDisplayNames
+      : [initialData?.class || "Grade 10"]
+  );
   const [email, setEmail] = useState(initialData?.email || "");
   const [phone, setPhone] = useState(initialData?.phone || "");
   const [qrCodeValue, setQrCodeValue] = useState(initialData?.qrCodeValue || "");
@@ -37,6 +47,11 @@ export const StudentForm: React.FC<StudentFormProps> = ({
       return;
     }
 
+    if (selectedClassIds.length === 0) {
+      setError("Please select at least one class for the student.");
+      return;
+    }
+
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       setError("Email address is required to send attendance and payment notifications.");
@@ -49,11 +64,15 @@ export const StudentForm: React.FC<StudentFormProps> = ({
       return;
     }
 
+    const primaryClassName = selectedDisplayNames[0] || "Grade 10";
+
     try {
       await onSubmit({
         studentId: studentId.trim().toUpperCase(),
         fullName: fullName.trim(),
-        class: studentClass.trim(),
+        class: primaryClassName,
+        classIds: selectedClassIds,
+        classDisplayNames: selectedDisplayNames,
         email: trimmedEmail,
         phone: phone.trim(),
         qrCodeValue: qrCodeValue.trim() || `{"std_ID":"${studentId.trim().toUpperCase()}"}`,
@@ -97,24 +116,13 @@ export const StudentForm: React.FC<StudentFormProps> = ({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Class / Grade *"
-          value={studentClass}
-          onChange={(e) => setStudentClass(e.target.value)}
-          options={[
-            { label: "Grade 1", value: "Grade 1" },
-            { label: "Grade 2", value: "Grade 2" },
-            { label: "Grade 3", value: "Grade 3" },
-            { label: "Grade 4", value: "Grade 4" },
-            { label: "Grade 5", value: "Grade 5" },
-            { label: "Grade 6", value: "Grade 6" },
-            { label: "Grade 7", value: "Grade 7" },
-            { label: "Grade 8", value: "Grade 8" },
-            { label: "Grade 9", value: "Grade 9" },
-            { label: "Grade 10", value: "Grade 10" },
-            { label: "Grade 11", value: "Grade 11" },
-          ]}
+      <div>
+        <ClassPicker
+          selectedClassIds={selectedClassIds}
+          onChange={(ids, names) => {
+            setSelectedClassIds(ids);
+            setSelectedDisplayNames(names);
+          }}
         />
       </div>
 

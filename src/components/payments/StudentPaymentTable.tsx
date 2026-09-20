@@ -1,7 +1,7 @@
-"use client";
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MonthlyFeeRecord } from "@/types/payment";
+import { ClassEntity } from "@/types/class";
+import { getClasses } from "@/lib/classes/classService";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -30,10 +30,20 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [availableClasses, setAvailableClasses] = useState<ClassEntity[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const classes = Array.from(new Set(records.map((r) => r.classSnapshot))).sort();
+  useEffect(() => {
+    getClasses().then((list) => setAvailableClasses(list));
+  }, []);
+
+  const classOptions = Array.from(
+    new Set([
+      ...availableClasses.map((c) => c.name),
+      ...records.map((r) => r.classSnapshot),
+    ])
+  ).filter(Boolean).sort();
 
   const handleExportPdf = () => {
     exportMonthlyPaymentsToPdf({
@@ -96,7 +106,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
             }}
             options={[
               { label: "All Classes", value: "ALL" },
-              ...classes.map((c) => ({ label: c, value: c })),
+              ...classOptions.map((c) => ({ label: c, value: c })),
             ]}
           />
 

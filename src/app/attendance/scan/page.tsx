@@ -83,7 +83,7 @@ export default function AttendanceScanPage() {
         id: `${Date.now()}_${Math.random()}`,
         studentId: result.student?.studentId || "UNKNOWN",
         studentName: result.student?.fullName || "Unrecognized Code",
-        class: result.student ? result.student.class : "N/A",
+        class: result.student ? (result.student.class || result.student.classDisplayNames?.[0] || "N/A") : "N/A",
         status: result.status,
         message: result.message,
         time: timeStr,

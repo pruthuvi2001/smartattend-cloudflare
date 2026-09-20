@@ -1,8 +1,8 @@
-﻿"use client";
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Student } from "@/types/student";
+import { ClassEntity } from "@/types/class";
+import { getClasses } from "@/lib/classes/classService";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -23,10 +23,21 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [availableClasses, setAvailableClasses] = useState<ClassEntity[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
-  const classes = Array.from(new Set(students.map((s) => s.class))).sort();
+  useEffect(() => {
+    getClasses().then((list) => setAvailableClasses(list));
+  }, []);
+
+  // Combine dynamic class entities and any legacy student class names
+  const classOptions = Array.from(
+    new Set([
+      ...availableClasses.map((c) => c.name),
+      ...students.flatMap((s) => s.classDisplayNames || [s.class || "Grade 10"]),
+    ])
+  ).sort();
 
   const filtered = students.filter((s) => {
     const matchesSearch =
@@ -34,7 +45,12 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       s.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.qrCodeValue.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesClass = classFilter === "ALL" || s.class === classFilter;
+    const matchesClass =
+      classFilter === "ALL" ||
+      s.class === classFilter ||
+      (s.classDisplayNames && s.classDisplayNames.includes(classFilter)) ||
+      (s.classIds && s.classIds.includes(classFilter.toLowerCase().replace(/\s+/g, "-")));
+
     const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
 
     return matchesSearch && matchesClass && matchesStatus;
@@ -64,7 +80,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           }}
           options={[
             { label: "All Classes", value: "ALL" },
-            ...classes.map((c) => ({ label: c, value: c })),
+            ...classOptions.map((c) => ({ label: c, value: c })),
           ]}
         />
 
