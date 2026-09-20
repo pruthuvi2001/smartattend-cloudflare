@@ -14,6 +14,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { School, Globe, Clock, Sparkles, Trash2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ClassScheduleManager } from "@/components/classes/ClassScheduleManager";
+import { EmailDiagnosticCard } from "@/components/settings/EmailDiagnosticCard";
 
 export default function SettingsPage() {
   const { userProfile } = useAuth();
@@ -205,6 +206,9 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+
+          {/* Email Notification Diagnostic & Transport Status */}
+          <EmailDiagnosticCard />
 
           {/* Class Timetable & Schedule Management */}
           <Card className="p-6 bg-white">

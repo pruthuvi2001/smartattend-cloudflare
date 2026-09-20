@@ -109,7 +109,7 @@ export async function sendAttendanceEmailNotification(
   `;
 
   try {
-    fetch("/api/notifications/email", {
+    const res = await fetch("/api/notifications/email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -117,11 +117,17 @@ export async function sendAttendanceEmailNotification(
         subject,
         html,
       }),
-    }).catch((err) => {
-      console.debug("Failed to deliver attendance email notification:", err);
     });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      console.warn(`[Attendance Email Warning] Server HTTP ${res.status}:`, data?.error || "Dispatch failed");
+    } else if (data?.mocked) {
+      console.info(`[Attendance Email Simulation] Sent in mock mode for ${student.email}. ${data.warning}`);
+    } else {
+      console.log(`[Attendance Email Delivered] Sent to ${student.email} (ID: ${data?.messageId || "ok"})`);
+    }
   } catch (err) {
-    console.debug("Attendance email notification trigger error:", err);
+    console.warn("Attendance email notification trigger error:", err);
   }
 }
 
@@ -223,7 +229,7 @@ export async function sendPaymentEmailNotification(
   `;
 
   try {
-    fetch("/api/notifications/email", {
+    const res = await fetch("/api/notifications/email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -231,10 +237,92 @@ export async function sendPaymentEmailNotification(
         subject,
         html,
       }),
-    }).catch((err) => {
-      console.debug("Failed to deliver payment email receipt:", err);
     });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      console.warn(`[Payment Email Warning] Server HTTP ${res.status}:`, data?.error || "Dispatch failed");
+    } else if (data?.mocked) {
+      console.info(`[Payment Email Simulation] Sent in mock mode for ${student.email}. ${data.warning}`);
+    } else {
+      console.log(`[Payment Email Delivered] Sent to ${student.email} (ID: ${data?.messageId || "ok"})`);
+    }
   } catch (err) {
-    console.debug("Payment email notification trigger error:", err);
+    console.warn("Payment email notification trigger error:", err);
   }
 }
+
+export interface EmailServiceStatus {
+  configured: boolean;
+  provider: "resend" | "smtp" | "none";
+  smtpHost: string | null;
+  smtpUser: string | null;
+  emailFrom: string;
+  message: string;
+}
+
+/**
+ * Diagnostic tool to check backend SMTP / Resend configuration status.
+ */
+export async function checkEmailServiceStatus(): Promise<EmailServiceStatus> {
+  try {
+    const res = await fetch("/api/notifications/email", { method: "GET" });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return await res.json();
+  } catch (err: any) {
+    return {
+      configured: false,
+      provider: "none",
+      smtpHost: null,
+      smtpUser: null,
+      emailFrom: "notifications@smartattend.edu",
+      message: `Failed to check email service status: ${err?.message || "Unknown error"}`,
+    };
+  }
+}
+
+/**
+ * Trigger a diagnostic test email to a target email address.
+ */
+export async function sendDiagnosticTestEmail(toEmail: string): Promise<{ success: boolean; mocked?: boolean; message: string }> {
+  try {
+    const res = await fetch("/api/notifications/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: toEmail,
+        subject: "SmartAttend Diagnostic Test Email",
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #4f46e5;">SmartAttend Email Diagnostics</h2>
+            <p>If you are reading this email, your email transport settings (SMTP or Resend API) are working properly!</p>
+            <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+          </div>
+        `,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, message: data.error || "Failed to dispatch test email." };
+    }
+
+    if (data.mocked) {
+      return {
+        success: true,
+        mocked: true,
+        message: "Email dispatch succeeded in SIMULATION mode. (No environment credentials set).",
+      };
+    }
+
+    return {
+      success: true,
+      mocked: false,
+      message: `Test email dispatched successfully via ${data.provider.toUpperCase()} (ID: ${data.messageId || "ok"}). Check inbox/spam folder!`,
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Network error while triggering test email." };
+  }
+}
+
