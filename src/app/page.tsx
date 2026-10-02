@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,19 @@ export default function Home() {
       }
     }
   }, [user, userProfile, loading, router]);
+
+  // Fail-safe redirect timer: Ensure page never gets stuck forever
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (user || userProfile) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/login");
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [user, userProfile, router]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-3">

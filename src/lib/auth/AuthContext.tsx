@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -39,21 +39,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [demoUserRole, setDemoUserRole] = useState<UserRole | null>(null);
 
   const fetchProfile = async (firebaseUser: User) => {
-    let profile = await getUserProfile(firebaseUser.uid);
-    if (!profile) {
-      // First registered user becomes ADMIN, others STAFF
-      const initialRole: UserRole = "ADMIN";
-      profile = await createOrUpdateUserProfile(
-        firebaseUser.uid,
-        firebaseUser.email || "user@smartattend.edu",
-        firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
-        initialRole
-      );
+    try {
+      let profile = await getUserProfile(firebaseUser.uid);
+      if (!profile) {
+        // First registered user becomes ADMIN, others STAFF
+        const initialRole: UserRole = "ADMIN";
+        profile = await createOrUpdateUserProfile(
+          firebaseUser.uid,
+          firebaseUser.email || "user@smartattend.edu",
+          firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
+          initialRole
+        );
+      }
+      setUserProfile(profile);
+    } catch (err) {
+      console.error("Error in fetchProfile:", err);
+      // Fallback profile if Firestore fails or offline
+      setUserProfile({
+        userId: firebaseUser.uid,
+        email: firebaseUser.email || "user@smartattend.edu",
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
+        role: "ADMIN",
+        status: "ACTIVE",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
-    setUserProfile(profile);
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    // Safety timeout fallback: Ensure loading is never stuck indefinitely
+    const timeoutId = setTimeout(() => {
+      if (mounted) {
+        setLoading(false);
+      }
+    }, 2000);
+
     // Check if demo user saved in sessionStorage for instant dev persistence
     if (typeof window !== 'undefined') {
       const savedDemo = sessionStorage.getItem('smartattend_demo_user');
@@ -63,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserProfile(parsed);
           setDemoUserRole(parsed.role);
           setLoading(false);
+          clearTimeout(timeoutId);
           return;
         } catch {
           // ignore
@@ -70,19 +94,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        await fetchProfile(currentUser);
-      } else {
-        if (!demoUserRole) {
-          setUserProfile(null);
-        }
-      }
-      setLoading(false);
-    });
+    let unsubscribe = () => {};
 
-    return () => unsubscribe();
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        async (currentUser) => {
+          if (!mounted) return;
+          try {
+            setUser(currentUser);
+            if (currentUser) {
+              await fetchProfile(currentUser);
+            } else {
+              if (!demoUserRole) {
+                setUserProfile(null);
+              }
+            }
+          } catch (err) {
+            console.error("Auth callback error:", err);
+          } finally {
+            if (mounted) {
+              setLoading(false);
+              clearTimeout(timeoutId);
+            }
+          }
+        },
+        (error) => {
+          console.error("onAuthStateChanged error:", error);
+          if (mounted) {
+            setLoading(false);
+            clearTimeout(timeoutId);
+          }
+        }
+      );
+    } catch (err) {
+      console.error("Firebase auth initialization error:", err);
+      if (mounted) {
+        setLoading(false);
+        clearTimeout(timeoutId);
+      }
+    }
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [demoUserRole]);
 
   const loginAsDemo = (role: UserRole = "ADMIN") => {
