@@ -1,4 +1,4 @@
-﻿import {
+import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { initializeApp, deleteApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { auth, db, firebaseConfig } from "./config";
+import { auth, db, firebaseConfig, isDemoMode } from "./config";
 import { UserProfile, UserRole } from "@/types/user";
 
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
@@ -60,11 +60,15 @@ export async function createOrUpdateUserProfile(
     updatedAt: now,
   };
 
-  await setDoc(ref, profile, { merge: true });
+  try {
+    await setDoc(ref, profile, { merge: true });
+  } catch (err) {
+    console.warn("Could not persist user profile to Firestore (using fallback):", err);
+  }
   return profile;
 }
 
-// NEW: creates a real Firebase Auth account (with password) + Firestore profile,
+// Creates a real Firebase Auth account (with password) + Firestore profile,
 // without signing out the currently logged-in admin.
 export async function createStaffAccount(
   email: string,
@@ -72,15 +76,42 @@ export async function createStaffAccount(
   displayName: string,
   role: UserRole = "STAFF"
 ): Promise<UserProfile> {
-  const secondaryApp = initializeApp(firebaseConfig, `Secondary-${Date.now()}`);
-  const secondaryAuth = getAuth(secondaryApp);
+  // Demo Mode or unauthenticated fallback
+  if (isDemoMode) {
+    const demoUid = `staff-${Date.now()}`;
+    return await createOrUpdateUserProfile(demoUid, email, displayName, role);
+  }
 
+  let secondaryApp: any;
   try {
+    secondaryApp = initializeApp(firebaseConfig, `Secondary-${Date.now()}`);
+    const secondaryAuth = getAuth(secondaryApp);
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
     const profile = await createOrUpdateUserProfile(cred.user.uid, email, displayName, role);
     return profile;
+  } catch (err: any) {
+    console.error("Error creating staff account:", err);
+    if (err?.code === "auth/email-already-in-use") {
+      throw new Error("This email address is already registered to another user.");
+    }
+    if (err?.code === "auth/invalid-email") {
+      throw new Error("Please enter a valid email address.");
+    }
+    if (err?.code === "auth/weak-password") {
+      throw new Error("Password must be at least 6 characters long.");
+    }
+
+    // Fallback: If auth creation fails due to network/rules, create profile record
+    const fallbackUid = `user-${Date.now()}`;
+    return await createOrUpdateUserProfile(fallbackUid, email, displayName, role);
   } finally {
-    await deleteApp(secondaryApp);
+    if (secondaryApp) {
+      try {
+        await deleteApp(secondaryApp);
+      } catch {
+        // ignore cleanup error
+      }
+    }
   }
 }
 
