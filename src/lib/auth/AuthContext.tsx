@@ -86,7 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // actively recreate/write it to Firestore so security rules and permission checks pass!
       if (!docExistsInFirestore) {
         try {
-          await setDoc(userDocRef, profile, { merge: true });
+          // Pure setDoc (create) WITHOUT { merge: true } so Firestore security rules evaluate "allow create"
+          // which allows any authenticated user where request.auth.uid == userId
+          await setDoc(userDocRef, profile);
           console.log("Restored user profile to Firestore:", profile.userId);
         } catch (syncErr) {
           console.warn("Could not write restored profile to Firestore:", syncErr);

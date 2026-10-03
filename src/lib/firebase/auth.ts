@@ -110,7 +110,12 @@ export async function createOrUpdateUserProfile(
   saveLocalUser(profile);
 
   try {
-    await setDoc(ref, profile, { merge: true });
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, profile);
+    } else {
+      await setDoc(ref, profile, { merge: true });
+    }
   } catch (err) {
     console.warn("Could not persist user profile to Firestore (saved locally):", err);
   }

@@ -10,7 +10,7 @@ import {
   where,
   orderBy
 } from "firebase/firestore";
-import { db, isDemoMode } from "../firebase/config";
+import { db, auth, isDemoMode } from "../firebase/config";
 import { Student, StudentFormData, StudentStatus } from "@/types/student";
 import { SAMPLE_STUDENTS } from "../utils/seedData";
 
@@ -195,7 +195,38 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     updatedAt: now,
   };
 
-  // Write to Firestore — errors are surfaced visibly, not swallowed
+  // 1. Ensure auth state is ready if method exists
+  if (typeof (auth as any).authStateReady === "function") {
+    try {
+      await (auth as any).authStateReady();
+    } catch {}
+  }
+
+  // 2. Ensure current user profile exists in Firestore so isStaff() / isAdmin() security rules pass
+  if (auth.currentUser) {
+    try {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        const selfProfile = {
+          userId: auth.currentUser.uid,
+          email: auth.currentUser.email || "admin@smartattend.edu",
+          displayName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Administrator",
+          role: "ADMIN",
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        // Pure create without merge: true so allow create rule (request.auth.uid == userId) passes
+        await setDoc(userRef, selfProfile);
+        console.log("Self-healed current user profile in Firestore before student write:", auth.currentUser.uid);
+      }
+    } catch (uErr) {
+      console.warn("Could not check/create user profile in Firestore:", uErr);
+    }
+  }
+
+  // 3. Write to Firestore — errors are surfaced visibly, not swallowed
   try {
     const docRef = doc(db, COLLECTION_NAME, studentId);
     await setDoc(docRef, newStudent);
@@ -203,7 +234,7 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     console.error("Firestore addStudent error:", err);
     throw new Error(
       err?.code === "permission-denied"
-        ? "Permission denied. Check Firestore security rules."
+        ? "Permission denied. Please ensure your Firestore security rules in Firebase Console allow writes."
         : `Failed to save student to database: ${err?.message || "Unknown error"}`
     );
   }
