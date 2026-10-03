@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getAllUsers, createStaffAccount, updateUserRoleAndStatus } from "@/lib/firebase/auth";
+import { getAllUsers, createStaffAccount, createOrUpdateUserProfile, updateUserRoleAndStatus } from "@/lib/firebase/auth";
 import { UserProfile, UserRole } from "@/types/user";
 import { ROLE_PERMISSIONS } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/Button";
@@ -52,6 +52,10 @@ export default function UsersPage() {
             updatedAt: new Date().toISOString(),
           },
         ];
+        // Persist defaults so they appear across reloads
+        for (const u of defaults) {
+          await createOrUpdateUserProfile(u.userId, u.email, u.displayName, u.role);
+        }
         setUsers(defaults);
       } else {
         setUsers(list);
@@ -72,12 +76,17 @@ export default function UsersPage() {
     if (!email || !displayName || !password) return;
     setSaving(true);
     try {
-      await createStaffAccount(email.trim(), password, displayName.trim(), role);
+      const createdUser = await createStaffAccount(email.trim(), password, displayName.trim(), role);
       toast.success("User Created", `Registered ${displayName} as ${role}`);
       setAddModalOpen(false);
       setEmail("");
       setDisplayName("");
       setPassword("");
+      // Instantly update state with created user
+      setUsers((prev) => {
+        const filtered = prev.filter((u) => u.userId !== createdUser.userId && u.email !== createdUser.email);
+        return [createdUser, ...filtered];
+      });
       await loadUsers();
     } catch (err: any) {
       toast.error("Error creating user", err.message);

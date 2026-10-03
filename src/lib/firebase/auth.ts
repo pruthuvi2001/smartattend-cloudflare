@@ -18,6 +18,34 @@ import { getAuth } from "firebase/auth";
 import { auth, db, firebaseConfig, isDemoMode } from "./config";
 import { UserProfile, UserRole } from "@/types/user";
 
+const LOCAL_USERS_KEY = "smartattend_local_users_cache";
+
+function getLocalUsers(): UserProfile[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const data = localStorage.getItem(LOCAL_USERS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalUser(profile: UserProfile): void {
+  if (typeof window === "undefined") return;
+  try {
+    const list = getLocalUsers();
+    const idx = list.findIndex((u) => u.userId === profile.userId || (u.email && u.email === profile.email));
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...profile };
+    } else {
+      list.unshift(profile);
+    }
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+}
+
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
   const cred = await signInWithEmailAndPassword(auth, email, pass);
   return cred.user;
@@ -28,17 +56,23 @@ export async function logoutUser(): Promise<void> {
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  // Check local cache first for fast response
+  const localList = getLocalUsers();
+  const foundLocal = localList.find((u) => u.userId === uid);
+
   try {
     const ref = doc(db, "users", uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
-      return snap.data() as UserProfile;
+      const data = snap.data() as UserProfile;
+      saveLocalUser(data);
+      return data;
     }
-    return null;
   } catch (err) {
-    console.error("Error fetching user profile:", err);
-    return null;
+    console.error("Error fetching user profile from Firestore:", err);
   }
+
+  return foundLocal || null;
 }
 
 export async function createOrUpdateUserProfile(
@@ -60,10 +94,13 @@ export async function createOrUpdateUserProfile(
     updatedAt: now,
   };
 
+  // Always save locally so User Management list reflects it immediately
+  saveLocalUser(profile);
+
   try {
     await setDoc(ref, profile, { merge: true });
   } catch (err) {
-    console.warn("Could not persist user profile to Firestore (using fallback):", err);
+    console.warn("Could not persist user profile to Firestore (saved locally):", err);
   }
   return profile;
 }
@@ -116,13 +153,29 @@ export async function createStaffAccount(
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
+  const localList = getLocalUsers();
   try {
     const col = collection(db, "users");
     const snap = await getDocs(col);
-    return snap.docs.map((d) => d.data() as UserProfile);
+    const firestoreUsers = snap.docs.map((d) => d.data() as UserProfile);
+
+    // Merge firestoreUsers and localList, deduplicating by userId or email
+    const mergedMap = new Map<string, UserProfile>();
+    for (const u of firestoreUsers) {
+      const key = u.userId || u.email;
+      if (key) mergedMap.set(key, u);
+    }
+    for (const u of localList) {
+      const key = u.userId || u.email;
+      if (key && !mergedMap.has(key)) {
+        mergedMap.set(key, u);
+      }
+    }
+
+    return Array.from(mergedMap.values());
   } catch (err) {
     console.error("Error fetching all users:", err);
-    return [];
+    return localList;
   }
 }
 
@@ -131,10 +184,25 @@ export async function updateUserRoleAndStatus(
   role: UserRole,
   status: "ACTIVE" | "INACTIVE"
 ): Promise<void> {
-  const ref = doc(db, "users", userId);
-  await updateDoc(ref, {
-    role,
-    status,
-    updatedAt: new Date().toISOString(),
-  });
+  const localList = getLocalUsers();
+  const found = localList.find((u) => u.userId === userId);
+  if (found) {
+    saveLocalUser({
+      ...found,
+      role,
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  try {
+    const ref = doc(db, "users", userId);
+    await updateDoc(ref, {
+      role,
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("Could not update user role/status in Firestore (updated locally):", err);
+  }
 }

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, isDemoMode } from "@/lib/firebase/config";
-import { getUserProfile, createOrUpdateUserProfile, logoutUser } from "@/lib/firebase/auth";
+import { getUserProfile, createOrUpdateUserProfile, getAllUsers, logoutUser } from "@/lib/firebase/auth";
 import { UserProfile, UserRole } from "@/types/user";
 
 interface AuthContextType {
@@ -42,8 +42,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       let profile = await getUserProfile(firebaseUser.uid);
       if (!profile) {
-        // First registered user becomes ADMIN, others STAFF
-        const initialRole: UserRole = "ADMIN";
+        // Check if any registered users already exist in system
+        const existing = await getAllUsers();
+        // First user ever created becomes ADMIN; subsequent auto-provisioned users become STAFF
+        const initialRole: UserRole = existing.length === 0 ? "ADMIN" : "STAFF";
         profile = await createOrUpdateUserProfile(
           firebaseUser.uid,
           firebaseUser.email || "user@smartattend.edu",
@@ -59,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: firebaseUser.uid,
         email: firebaseUser.email || "user@smartattend.edu",
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
-        role: "ADMIN",
+        role: "STAFF",
         status: "ACTIVE",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
