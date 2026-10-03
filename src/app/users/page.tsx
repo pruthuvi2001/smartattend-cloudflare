@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getAllUsers, createStaffAccount, createOrUpdateUserProfile, updateUserRoleAndStatus } from "@/lib/firebase/auth";
+import { getAllUsers, createStaffAccount, createOrUpdateUserProfile, updateUserRoleAndStatus, deleteUserProfile } from "@/lib/firebase/auth";
 import { UserProfile, UserRole } from "@/types/user";
 import { ROLE_PERMISSIONS } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { ShieldCheck, UserPlus, UserX, UserCheck, ShieldAlert } from "lucide-react";
+import { ShieldCheck, UserPlus, UserX, UserCheck, ShieldAlert, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 export default function UsersPage() {
@@ -116,6 +116,20 @@ export default function UsersPage() {
     }
   };
 
+  const handleDeleteUser = async (user: UserProfile) => {
+    if (!confirm(`Are you sure you want to delete staff account '${user.displayName}' (${user.email})? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteUserProfile(user.userId);
+      toast.info("User Account Deleted", `Removed ${user.displayName} from staff list.`);
+      setUsers((prev) => prev.filter((u) => u.userId !== user.userId && u.email !== user.email));
+      await loadUsers();
+    } catch (err: any) {
+      toast.error("Error deleting user", err.message);
+    }
+  };
+
   return (
     <ProtectedRoute requiredRole="ADMIN">
       <AppLayout>
@@ -185,14 +199,25 @@ export default function UsersPage() {
                         </Badge>
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleStatus(u)}
-                          className={u.status === "ACTIVE" ? "text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-50"}
-                        >
-                          {u.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleStatus(u)}
+                            className={u.status === "ACTIVE" ? "text-amber-600 hover:bg-amber-50" : "text-emerald-600 hover:bg-emerald-50"}
+                          >
+                            {u.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(u)}
+                            className="text-rose-600 hover:bg-rose-50 p-1.5"
+                            title="Delete User Account"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

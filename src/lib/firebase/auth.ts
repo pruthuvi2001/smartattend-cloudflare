@@ -9,6 +9,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   getDocs,
   serverTimestamp
@@ -41,6 +42,17 @@ function saveLocalUser(profile: UserProfile): void {
       list.unshift(profile);
     }
     localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+}
+
+function removeLocalUser(userId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const list = getLocalUsers();
+    const filtered = list.filter((u) => u.userId !== userId && u.email !== userId);
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(filtered));
   } catch {
     // ignore
   }
@@ -204,5 +216,15 @@ export async function updateUserRoleAndStatus(
     });
   } catch (err) {
     console.warn("Could not update user role/status in Firestore (updated locally):", err);
+  }
+}
+
+export async function deleteUserProfile(userId: string): Promise<void> {
+  removeLocalUser(userId);
+  try {
+    const ref = doc(db, "users", userId);
+    await deleteDoc(ref);
+  } catch (err) {
+    console.warn("Could not delete user profile from Firestore (deleted locally):", err);
   }
 }
