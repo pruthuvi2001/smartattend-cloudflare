@@ -319,16 +319,67 @@ export async function seedSampleStudents(): Promise<number> {
 }
 
 /**
- * Clear all students.
+ * Clear all student data from Firestore (students, attendance, fee records) and local cache.
  */
-export async function clearAllStudents(): Promise<void> {
+export async function clearAllStudents(): Promise<{
+  studentsDeleted: number;
+  attendanceDeleted: number;
+  feeRecordsDeleted: number;
+}> {
+  let studentsDeleted = 0;
+  let attendanceDeleted = 0;
+  let feeRecordsDeleted = 0;
+
   try {
+    // 1. Delete all students
     const colRef = collection(db, COLLECTION_NAME);
     const snap = await getDocs(colRef);
     for (const d of snap.docs) {
       await deleteDoc(d.ref);
+      studentsDeleted++;
     }
-  } catch {}
 
+    // 2. Delete all attendance records
+    try {
+      const attRef = collection(db, "attendance");
+      const attSnap = await getDocs(attRef);
+      for (const d of attSnap.docs) {
+        await deleteDoc(d.ref);
+        attendanceDeleted++;
+      }
+    } catch (e) {
+      console.warn("Could not clear attendance collection:", e);
+    }
+
+    // 3. Delete all fee records
+    try {
+      const feeRef = collection(db, "feeRecords");
+      const feeSnap = await getDocs(feeRef);
+      for (const d of feeSnap.docs) {
+        await deleteDoc(d.ref);
+        feeRecordsDeleted++;
+      }
+    } catch (e) {
+      console.warn("Could not clear feeRecords collection:", e);
+    }
+  } catch (err: any) {
+    console.error("Error clearing students from Firestore:", err);
+    throw new Error(
+      err?.code === "permission-denied"
+        ? "Permission denied. Please ensure your Firestore security rules are published in Firebase Console."
+        : `Failed to clear students: ${err?.message || "Unknown error"}`
+    );
+  }
+
+  // 4. Purge local cache completely
   saveLocalStudents([]);
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("smartattend_local_attendance");
+      localStorage.removeItem("smartattend_local_fee_records");
+    } catch {}
+  }
+
+  return { studentsDeleted, attendanceDeleted, feeRecordsDeleted };
 }
+

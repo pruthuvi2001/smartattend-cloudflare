@@ -34,7 +34,27 @@ export default function StudentsPage() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const toast = useToast();
+
+  const handleClearAll = async () => {
+    if (!confirm("Are you sure you want to permanently clear all student records, attendance logs, and fee records from the database? This cannot be undone.")) {
+      return;
+    }
+    setClearing(true);
+    try {
+      const res = await clearAllStudents();
+      toast.success(
+        "Database Reset Complete",
+        `Cleared ${res.studentsDeleted} student(s), ${res.attendanceDeleted} attendance record(s), and ${res.feeRecordsDeleted} fee record(s).`
+      );
+      await loadStudents();
+    } catch (err: any) {
+      toast.error("Clear Error", err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const loadStudents = async () => {
     try {
@@ -183,6 +203,18 @@ export default function StudentsPage() {
               >
                 Add Student
               </Button>
+
+              {isAdmin && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleClearAll}
+                  isLoading={clearing}
+                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                >
+                  Clear All Data
+                </Button>
+              )}
             </div>
           </div>
 

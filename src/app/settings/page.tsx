@@ -5,13 +5,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSystemSettings, saveSystemSettings } from "@/lib/settings/settingsService";
-import { seedSampleStudents, clearAllStudents } from "@/lib/students/studentService";
+import { clearAllStudents } from "@/lib/students/studentService";
 import { SystemSettings, DEFAULT_SETTINGS } from "@/types/settings";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
-import { School, Globe, Clock, Sparkles, Trash2, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { School, Globe, Clock, Trash2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ClassScheduleManager } from "@/components/classes/ClassScheduleManager";
 import { EmailDiagnosticCard } from "@/components/settings/EmailDiagnosticCard";
@@ -25,7 +25,6 @@ export default function SettingsPage() {
   const [defaultMonthlyFee, setDefaultMonthlyFee] = useState("5000");
   const [currencySymbol, setCurrencySymbol] = useState("Rs.");
   const [saving, setSaving] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
   const toast = useToast();
 
@@ -63,28 +62,19 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      const count = await seedSampleStudents();
-      toast.success("Sample Data Seeded", `Loaded ${count} sample students into database.`);
-    } catch (err: any) {
-      toast.error("Seed Error", err.message);
-    } finally {
-      setSeeding(false);
-    }
-  };
-
   const handleClear = async () => {
-    if (!confirm("Are you sure you want to clear all student records? This action cannot be undone.")) {
+    if (!confirm("Are you sure you want to permanently clear all student records, attendance logs, and fee records from the database? This action cannot be undone.")) {
       return;
     }
     setClearing(true);
     try {
-      await clearAllStudents();
-      toast.info("Database Reset", "All student records cleared.");
+      const res = await clearAllStudents();
+      toast.success(
+        "Database Reset Complete",
+        `Cleared ${res.studentsDeleted} student(s), ${res.attendanceDeleted} attendance record(s), and ${res.feeRecordsDeleted} fee record(s).`
+      );
     } catch (err: any) {
-      toast.error("Error", err.message);
+      toast.error("Error Clearing Database", err.message);
     } finally {
       setClearing(false);
     }
@@ -215,41 +205,23 @@ export default function SettingsPage() {
             <ClassScheduleManager />
           </Card>
 
-          {/* Development & Seed Data Management */}
-          <Card className="border-amber-200 bg-amber-50/40">
+          {/* Database Cleanup & Production Reset */}
+          <Card className="border-rose-200 bg-rose-50/20">
             <CardHeader>
-              <CardTitle className="text-sm text-amber-950 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                Seed & Database Maintenance
+              <CardTitle className="text-sm text-rose-950 flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                Database Reset & Cleanup
               </CardTitle>
-              <CardDescription className="text-amber-800">
-                Populate or reset test data for quick demonstration and evaluation.
+              <CardDescription className="text-rose-800">
+                Purge existing student records and related history for clean production use.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-amber-200">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">Load 10 Realistic Sample Students</h4>
-                  <p className="text-[11px] text-slate-500">
-                    Instantly seeds student IDs `STU001` through `STU010` with QR values.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSeed}
-                  isLoading={seeding}
-                  className="bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shrink-0"
-                >
-                  Load Seed Data
-                </Button>
-              </div>
-
+            <CardContent>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-rose-200">
                 <div>
-                  <h4 className="text-xs font-bold text-rose-900">Clear All Student Records</h4>
+                  <h4 className="text-xs font-bold text-rose-900">Clear All Student Records & Logs</h4>
                   <p className="text-[11px] text-slate-500">
-                    Removes all students to prepare for fresh production onboarding.
+                    Permanently deletes all students, QR assignments, attendance logs, and fee history from Firestore.
                   </p>
                 </div>
                 <Button
@@ -259,7 +231,7 @@ export default function SettingsPage() {
                   isLoading={clearing}
                   className="shrink-0"
                 >
-                  Clear All Data
+                  Clear Existing Student Data
                 </Button>
               </div>
             </CardContent>
