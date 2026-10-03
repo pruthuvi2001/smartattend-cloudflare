@@ -34,6 +34,10 @@ function saveLocalStudents(students: Student[]) {
   } catch {}
 }
 
+export function clearLocalStudentCache(): void {
+  saveLocalStudents([]);
+}
+
 /**
  * Fetch all students from Firestore with local fallback.
  * When Firestore is reachable, its state is authoritative — including when empty.
@@ -56,11 +60,16 @@ export async function getStudents(): Promise<Student[]> {
     // Clear stale local cache so manually-deleted records don't re-appear as ghosts.
     saveLocalStudents([]);
     return [];
-  } catch (err) {
-    console.debug("Firestore getStudents fallback to local:", err);
+  } catch (err: any) {
+    console.warn("Firestore getStudents error:", err);
+    if (err?.code === "permission-denied") {
+      throw new Error(
+        "Permission denied reading student records. Check Firestore security rules in Firebase Console."
+      );
+    }
   }
 
-  // Firestore was unreachable (network error) — use local cache for offline support
+  // Firestore was unreachable (e.g. offline) — use local cache for offline support
   return getLocalStudents();
 }
 

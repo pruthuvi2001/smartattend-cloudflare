@@ -10,6 +10,7 @@ import {
   updateStudent,
   toggleStudentStatus,
   clearAllStudents,
+  clearLocalStudentCache,
 } from "@/lib/students/studentService";
 import { Student, StudentFormData } from "@/types/student";
 import { StudentTable } from "@/components/students/StudentTable";
@@ -41,8 +42,9 @@ export default function StudentsPage() {
       await autoMigrateLegacyClasses();
       const list = await getStudents();
       setStudents(list);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error loading students:", err);
+      toast.error("Roster Load Warning", err?.message || "Could not retrieve student list.");
     } finally {
       setLoading(false);
     }
@@ -96,18 +98,25 @@ export default function StudentsPage() {
     }
   };
 
-  const handleBatchImport = async (parsedList: StudentFormData[]): Promise<number> => {
-    let count = 0;
+  const handleBatchImport = async (parsedList: StudentFormData[]) => {
+    let successCount = 0;
+    const errors: string[] = [];
+
     for (const item of parsedList) {
       try {
         await addStudent(item);
-        count++;
-      } catch (e) {
-        console.debug("Skip duplicate during import:", e);
+        successCount++;
+      } catch (e: any) {
+        const msg = e?.message || "Failed to add student";
+        errors.push(`${item.studentId} (${item.fullName}): ${msg}`);
       }
     }
     await loadStudents();
-    return count;
+    return {
+      successCount,
+      failureCount: errors.length,
+      errors,
+    };
   };
 
   const handleExportCsv = () => {
@@ -135,6 +144,19 @@ export default function StudentsPage() {
             </div>
 
             <div className="flex items-center flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  clearLocalStudentCache();
+                  await loadStudents();
+                  toast.info("Roster Synced", "Local cache cleared and synced with database.");
+                }}
+                leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+              >
+                Sync & Refresh
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"

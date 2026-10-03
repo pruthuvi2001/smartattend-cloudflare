@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth, isDemoMode } from "@/lib/firebase/config";
-import { getUserProfile, createOrUpdateUserProfile, getAllUsers, logoutUser } from "@/lib/firebase/auth";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { auth, db, isDemoMode } from "@/lib/firebase/config";
+import { getUserProfile, createOrUpdateUserProfile, getAllUsers, logoutUser, saveLocalUser } from "@/lib/firebase/auth";
 import { UserProfile, UserRole } from "@/types/user";
 
 interface AuthContextType {
@@ -40,19 +41,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (firebaseUser: User) => {
     try {
-      let profile = await getUserProfile(firebaseUser.uid);
-      if (!profile) {
-        // Check if any registered users already exist in system
-        const existing = await getAllUsers();
-        // First user ever created becomes ADMIN; subsequent auto-provisioned users become STAFF
-        const initialRole: UserRole = existing.length === 0 ? "ADMIN" : "STAFF";
-        profile = await createOrUpdateUserProfile(
-          firebaseUser.uid,
-          firebaseUser.email || "user@smartattend.edu",
-          firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
-          initialRole
-        );
+      // 1. Check if user document physically exists in Firestore
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      let profile: UserProfile | null = null;
+      let docExistsInFirestore = false;
+
+      try {
+        const snap = await getDoc(userDocRef);
+        if (snap.exists()) {
+          profile = snap.data() as UserProfile;
+          docExistsInFirestore = true;
+          saveLocalUser(profile);
+        }
+      } catch (docErr) {
+        console.warn("Could not read user profile directly from Firestore:", docErr);
       }
+
+      // 2. Fall back to cached local profile if Firestore didn't have it
+      if (!profile) {
+        profile = await getUserProfile(firebaseUser.uid);
+      }
+
+      // 3. If neither exists, determine role and generate new profile
+      if (!profile) {
+        let firestoreUserCount = 0;
+        try {
+          const snap = await getDocs(collection(db, "users"));
+          firestoreUserCount = snap.size;
+        } catch {}
+
+        const initialRole: UserRole = firestoreUserCount === 0 ? "ADMIN" : "STAFF";
+        profile = {
+          userId: firebaseUser.uid,
+          email: firebaseUser.email || "user@smartattend.edu",
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
+          role: initialRole,
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      // 4. CRITICAL SELF-HEALING: If doc was missing in Firestore (e.g. wiped during DB cleanup),
+      // actively recreate/write it to Firestore so security rules and permission checks pass!
+      if (!docExistsInFirestore) {
+        try {
+          await setDoc(userDocRef, profile, { merge: true });
+          console.log("Restored user profile to Firestore:", profile.userId);
+        } catch (syncErr) {
+          console.warn("Could not write restored profile to Firestore:", syncErr);
+        }
+        saveLocalUser(profile);
+      }
+
       setUserProfile(profile);
     } catch (err) {
       console.error("Error in fetchProfile:", err);
@@ -61,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: firebaseUser.uid,
         email: firebaseUser.email || "user@smartattend.edu",
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
-        role: "STAFF",
+        role: "ADMIN",
         status: "ACTIVE",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

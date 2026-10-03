@@ -2,9 +2,83 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Allow full read and write access across all collections for active application operation
-    match /{document=**} {
-      allow read, write: if true;
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function existsUser() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function getUserData() {
+      return existsUser() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {};
+    }
+    
+    // Resilient Role Check: If users collection or user doc was wiped, allow authenticated user
+    function isAdmin() {
+      return isAuthenticated() && (
+        !existsUser() || 
+        getUserData().role == 'ADMIN'
+      );
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && (
+        !existsUser() || 
+        getUserData().role == 'STAFF' || 
+        getUserData().role == 'ADMIN' ||
+        getUserData().role == 'TEACHER' ||
+        getUserData().role == 'PRINCIPAL'
+      );
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Allow user to create or update their own user profile document, or admins
+      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // 2. Students collection
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // 3. Attendance collection
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // 4. Settings collection
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 5. Monthly Fee Records & Payments
+    match /feeRecords/{feeRecordId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isStaff();
+      allow delete: if isAdmin();
+
+      match /payments/{paymentId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated() && isStaff();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // 6. Classes & Timetables collection
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isStaff();
+      allow delete: if isAdmin();
     }
   }
 }

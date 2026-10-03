@@ -21,7 +21,7 @@ import { UserProfile, UserRole } from "@/types/user";
 
 const LOCAL_USERS_KEY = "smartattend_local_users_cache";
 
-function getLocalUsers(): UserProfile[] {
+export function getLocalUsers(): UserProfile[] {
   if (typeof window === "undefined") return [];
   try {
     const data = localStorage.getItem(LOCAL_USERS_KEY);
@@ -31,7 +31,7 @@ function getLocalUsers(): UserProfile[] {
   }
 }
 
-function saveLocalUser(profile: UserProfile): void {
+export function saveLocalUser(profile: UserProfile): void {
   if (typeof window === "undefined") return;
   try {
     const list = getLocalUsers();
