@@ -36,54 +36,62 @@ function saveLocalStudents(students: Student[]) {
 
 /**
  * Fetch all students from Firestore with local fallback.
+ * When Firestore is reachable, its state is authoritative — including when empty.
+ * This prevents stale localStorage from showing ghost records after manual Firestore deletions.
  */
 export async function getStudents(): Promise<Student[]> {
+  let firestoreReachable = false;
   try {
     const colRef = collection(db, COLLECTION_NAME);
     const snap = await getDocs(colRef);
+    firestoreReachable = true;
     if (!snap.empty) {
       const list = snap.docs.map((d) => d.data() as Student);
       list.sort((a, b) => a.studentId.localeCompare(b.studentId));
+      // Keep local cache in sync with real Firestore state
+      saveLocalStudents(list);
       return list;
     }
+    // Firestore is reachable but collection is genuinely empty — trust it.
+    // Clear stale local cache so manually-deleted records don't re-appear as ghosts.
+    saveLocalStudents([]);
+    return [];
   } catch (err) {
     console.debug("Firestore getStudents fallback to local:", err);
   }
 
-  const local = getLocalStudents();
-  if (local.length > 0) return local;
-
-  // Auto-seed in demo mode
-  if (isDemoMode) {
-    const initial: Student[] = SAMPLE_STUDENTS.map((s) => ({
-      ...s,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-    saveLocalStudents(initial);
-    return initial;
-  }
-
-  return [];
+  // Firestore was unreachable (network error) — use local cache for offline support
+  return getLocalStudents();
 }
 
 /**
- * Fetch a single student by studentId
+ * Fetch a single student by studentId.
+ * Firestore's authoritative "not found" is trusted — only falls back to local
+ * cache when Firestore itself is unreachable (network/permissions error).
  */
 export async function getStudentById(studentId: string): Promise<Student | null> {
   const id = studentId.trim().toUpperCase();
+  let firestoreReachable = false;
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
     const snap = await getDoc(docRef);
+    firestoreReachable = true;
+    // Firestore responded — trust its answer (exists or not)
     if (snap.exists()) {
       return snap.data() as Student;
     }
+    // Document genuinely doesn't exist in Firestore — return null (not a local fallback)
+    return null;
   } catch (err) {
     console.debug("Firestore getStudentById fallback:", err);
   }
 
-  const local = getLocalStudents();
-  return local.find((s) => s.studentId.toUpperCase() === id) || null;
+  // Only use local cache as fallback when Firestore was unreachable
+  if (!firestoreReachable) {
+    const local = getLocalStudents();
+    return local.find((s) => s.studentId.toUpperCase() === id) || null;
+  }
+  return null;
 }
 
 /**
@@ -131,6 +139,7 @@ export async function getStudentByQrCode(qrValue: string): Promise<Student | nul
 
 /**
  * Add a new student. Validates for duplicate student ID.
+ * Throws a user-visible error if the Firestore write fails.
  */
 export async function addStudent(formData: StudentFormData): Promise<Student> {
   const studentId = formData.studentId.trim().toUpperCase();
@@ -177,16 +186,24 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     updatedAt: now,
   };
 
+  // Write to Firestore — errors are surfaced visibly, not swallowed
   try {
     const docRef = doc(db, COLLECTION_NAME, studentId);
     await setDoc(docRef, newStudent);
-  } catch (err) {
-    console.debug("Firestore addStudent fallback to local:", err);
+  } catch (err: any) {
+    console.error("Firestore addStudent error:", err);
+    throw new Error(
+      err?.code === "permission-denied"
+        ? "Permission denied. Check Firestore security rules."
+        : `Failed to save student to database: ${err?.message || "Unknown error"}`
+    );
   }
 
+  // Update local cache to include the newly saved student
   const local = getLocalStudents();
-  local.push(newStudent);
-  saveLocalStudents(local);
+  const filtered = local.filter((s) => s.studentId.toUpperCase() !== studentId);
+  filtered.push(newStudent);
+  saveLocalStudents(filtered);
 
   return newStudent;
 }

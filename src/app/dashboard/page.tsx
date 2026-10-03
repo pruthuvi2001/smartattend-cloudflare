@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getStudents, seedSampleStudents } from "@/lib/students/studentService";
+import { getStudents } from "@/lib/students/studentService";
 import { getAttendanceForDate } from "@/lib/attendance/attendanceService";
 import { evaluateAndMarkAutoAbsences } from "@/lib/attendance/autoAbsenceService";
 import { calculateDailyReport } from "@/lib/attendance/attendanceStats";
@@ -23,7 +23,6 @@ import {
   UserPlus,
   FileSpreadsheet,
   Clock,
-  Sparkles,
   ArrowRight,
   RefreshCw,
   School,
@@ -45,7 +44,6 @@ export default function DashboardPage() {
   });
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
   const toast = useToast();
 
   const todayStr = getNormalizedDate(new Date(), settings.timezone);
@@ -79,19 +77,6 @@ export default function DashboardPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleSeedData = async () => {
-    setSeeding(true);
-    try {
-      const count = await seedSampleStudents();
-      toast.success("Sample Data Loaded", `Added ${count} students to system`);
-      await loadData();
-    } catch (err: any) {
-      toast.error("Seed Error", err.message);
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const recentScans = rows
     .filter((r) => r.status === "PRESENT" || r.status === "LATE")
@@ -132,30 +117,6 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
-
-          {/* Seed Banner if No Students */}
-          {students.length === 0 && !loading && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-5 h-5 text-amber-600 shrink-0" />
-                <div>
-                  <h4 className="text-sm font-bold text-amber-900">Get Started with Sample Students</h4>
-                  <p className="text-xs text-amber-700">
-                    No students have been registered yet. Load pre-configured sample students to test scanning.
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSeedData}
-                isLoading={seeding}
-                className="bg-white border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0"
-              >
-                Load Sample Students
-              </Button>
-            </div>
-          )}
 
           {/* Key Metrics Cards */}
           <AttendanceSummary stats={stats} />

@@ -155,28 +155,37 @@ function saveLocalClasses(list: ClassEntity[]) {
 
 /**
  * Fetch all classes and their schedule configurations.
- * If empty, automatically seeds with DEFAULT_INITIAL_CLASSES.
+ * When Firestore is reachable, its state is authoritative — including when empty.
+ * Falls back to localStorage only when Firestore is unreachable (network error).
+ * If empty everywhere, auto-seeds defaults.
  */
 export async function getClasses(): Promise<ClassEntity[]> {
+  let firestoreReachable = false;
   try {
     const colRef = collection(db, COLLECTION_NAME);
     const snap = await getDocs(colRef);
+    firestoreReachable = true;
     if (!snap.empty) {
       const list = snap.docs.map((d) => d.data() as ClassEntity);
       list.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       saveLocalClasses(list);
       return list;
     }
+    // Firestore is reachable but empty — clear stale local cache
+    saveLocalClasses([]);
   } catch (err) {
     console.debug("Firestore getClasses fallback:", err);
   }
 
-  const local = getLocalClasses();
-  if (local.length > 0) {
-    return local.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!firestoreReachable) {
+    // Offline — use local cache
+    const local = getLocalClasses();
+    if (local.length > 0) {
+      return local.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    }
   }
 
-  // Auto-initialize if empty
+  // Nothing in Firestore or local — auto-initialize defaults
   await initializeDefaultClasses();
   return DEFAULT_INITIAL_CLASSES;
 }

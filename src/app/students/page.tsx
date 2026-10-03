@@ -9,7 +9,6 @@ import {
   addStudent,
   updateStudent,
   toggleStudentStatus,
-  seedSampleStudents,
   clearAllStudents,
 } from "@/lib/students/studentService";
 import { Student, StudentFormData } from "@/types/student";
@@ -111,16 +110,6 @@ export default function StudentsPage() {
     return count;
   };
 
-  const handleSeedData = async () => {
-    try {
-      const count = await seedSampleStudents();
-      toast.success("Sample Data Ready", `Loaded ${count} sample students.`);
-      await loadStudents();
-    } catch (err: any) {
-      toast.error("Seed Error", err.message);
-    }
-  };
-
   const handleExportCsv = () => {
     if (students.length === 0) {
       toast.warning("No Students", "Student roster is currently empty.");
@@ -187,25 +176,6 @@ export default function StudentsPage() {
             }}
             onToggleStatus={handleToggleStatus}
           />
-
-          {/* Quick Seeder Controls */}
-          {students.length === 0 && !loading && (
-            <div className="p-6 bg-indigo-50 border border-indigo-200 rounded-2xl text-center space-y-3">
-              <Sparkles className="w-8 h-8 text-indigo-600 mx-auto" />
-              <h3 className="text-base font-bold text-indigo-950">Quick Start with Seed Data</h3>
-              <p className="text-xs text-indigo-700 max-w-md mx-auto">
-                Populate 10 realistic student records (Grades 10, 11, 12) with scannable QR payloads to test attendance immediately.
-              </p>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={handleSeedData}
-                className="font-bold"
-              >
-                Populate 10 Sample Students
-              </Button>
-            </div>
-          )}
 
           {/* Add Student Modal */}
           <Modal
