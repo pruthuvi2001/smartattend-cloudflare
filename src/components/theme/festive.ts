@@ -16,11 +16,19 @@ export const FESTIVE_SEASON = true;
 const MOTION_KEY = "smartattend:festive-motion";
 const MOTION_EVENT = "smartattend:festive-motion-change";
 
-function readMotionPref(): boolean {
+/**
+ * "on"   – the viewer switched snow on with the snowflake button (wins over the device setting)
+ * "off"  – the viewer switched it off
+ * "auto" – never touched: follow the device's "reduce motion" / Windows "Animation effects" setting
+ */
+export type FestiveMotionPref = "on" | "off" | "auto";
+
+function readMotionPref(): FestiveMotionPref {
   try {
-    return window.localStorage.getItem(MOTION_KEY) !== "off";
+    const v = window.localStorage.getItem(MOTION_KEY);
+    return v === "on" || v === "off" ? v : "auto";
   } catch {
-    return true;
+    return "auto";
   }
 }
 
@@ -42,9 +50,20 @@ export function setFestiveMotion(on: boolean) {
   window.dispatchEvent(new Event(MOTION_EVENT));
 }
 
-/** Whether the viewer wants snow and motion (defaults to on). */
-export function useFestiveMotionPref(): boolean {
-  return useSyncExternalStore(subscribeMotionPref, readMotionPref, () => true);
+/** The viewer's own snow choice for this browser ("auto" until they press the snowflake button). */
+export function useFestiveMotionPref(): FestiveMotionPref {
+  return useSyncExternalStore(subscribeMotionPref, readMotionPref, () => "auto" as const);
+}
+
+/**
+ * Whether snow and background motion should run right now.
+ * The viewer's explicit choice wins; otherwise follow the device setting.
+ */
+export function useFestiveAnimate(): { animate: boolean; pref: FestiveMotionPref } {
+  const pref = useFestiveMotionPref();
+  const reducedMotion = usePrefersReducedMotion();
+  const animate = pref === "on" || (pref === "auto" && !reducedMotion);
+  return { animate, pref };
 }
 
 /** True when the device asks for reduced motion. */

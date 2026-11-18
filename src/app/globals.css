@@ -162,15 +162,16 @@ textarea {
   display: none;
 }
 
+/* Device asks for less motion — unless the viewer switched snow on with the snowflake button. */
 @media (prefers-reduced-motion: reduce) {
-  .festive-twinkle,
-  .festive-star,
-  .festive-aurora,
-  .festive-smoke,
-  .festive-glow {
+  html:not(.festive-motion-on) .festive-twinkle,
+  html:not(.festive-motion-on) .festive-star,
+  html:not(.festive-motion-on) .festive-aurora,
+  html:not(.festive-motion-on) .festive-smoke,
+  html:not(.festive-motion-on) .festive-glow {
     animation: none;
   }
-  .festive-sleigh {
+  html:not(.festive-motion-on) .festive-sleigh {
     display: none;
   }
 }

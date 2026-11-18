@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { ChristmasScene } from "./ChristmasScene";
 import { SnowCanvas } from "./SnowCanvas";
-import { FESTIVE_SEASON, useFestiveMotionPref, usePrefersReducedMotion } from "./festive";
+import { FESTIVE_SEASON, useFestiveAnimate } from "./festive";
 
 /** Plain night background used when the festive season switch is off. */
 const PLAIN_NIGHT =
@@ -15,14 +15,16 @@ const PLAIN_NIGHT =
  * mouse for clicks, and is hidden when printing.
  */
 export const FestiveEffects: React.FC = () => {
-  const motionPref = useFestiveMotionPref();
-  const reducedMotion = usePrefersReducedMotion();
-  const animate = motionPref && !reducedMotion;
+  const { animate, pref } = useFestiveAnimate();
 
-  // Lets every decoration on the page (fairy lights, glows) stop together.
+  // Lets every decoration on the page (fairy lights, glows) stop or run together.
+  // "festive-motion-on" = the viewer switched snow on themselves, which overrides
+  // the device's reduce-motion setting in globals.css too.
   useEffect(() => {
-    document.documentElement.classList.toggle("festive-still", !animate);
-  }, [animate]);
+    const root = document.documentElement;
+    root.classList.toggle("festive-still", !animate);
+    root.classList.toggle("festive-motion-on", pref === "on");
+  }, [animate, pref]);
 
   if (!FESTIVE_SEASON) {
     return (
