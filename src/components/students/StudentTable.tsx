@@ -7,18 +7,24 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Search, Eye, Edit, UserCheck, UserX, QrCode } from "lucide-react";
+import { Search, Eye, Edit, UserCheck, UserX, QrCode, IdCard, Trash2 } from "lucide-react";
 
 export interface StudentTableProps {
   students: Student[];
   onEdit: (student: Student) => void;
   onToggleStatus: (studentId: string, currentStatus: "ACTIVE" | "INACTIVE") => void;
+  /** Admin only — the button is shown when this is provided */
+  onChangeId?: (student: Student) => void;
+  /** Admin only — the button is shown when this is provided */
+  onDelete?: (student: Student) => void;
 }
 
 export const StudentTable: React.FC<StudentTableProps> = ({
   students,
   onEdit,
   onToggleStatus,
+  onChangeId,
+  onDelete,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("ALL");
@@ -180,6 +186,26 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                             <UserCheck className="w-4 h-4" />
                           )}
                         </button>
+                        {onChangeId && (
+                          <button
+                            onClick={() => onChangeId(s)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            title="Change Student ID"
+                            aria-label={`Change Student ID of ${s.fullName}`}
+                          >
+                            <IdCard className="w-4 h-4" />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            onClick={() => onDelete(s)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete Student"
+                            aria-label={`Delete ${s.fullName}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

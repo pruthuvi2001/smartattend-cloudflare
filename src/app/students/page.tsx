@@ -17,6 +17,7 @@ import { StudentTable } from "@/components/students/StudentTable";
 import { StudentForm } from "@/components/students/StudentForm";
 import { CsvImportModal } from "@/components/students/CsvImportModal";
 import { MissingEmailBanner } from "@/components/students/MissingEmailBanner";
+import { ChangeStudentIdModal, DeleteStudentModal } from "@/components/students/StudentAdminModals";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { exportStudentsToCsv } from "@/lib/utils/csvExport";
@@ -35,6 +36,8 @@ export default function StudentsPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [changingIdFor, setChangingIdFor] = useState<Student | null>(null);
+  const [deleting, setDeleting] = useState<Student | null>(null);
   const toast = useToast();
 
   const handleClearAll = async () => {
@@ -229,6 +232,8 @@ export default function StudentsPage() {
               setEditModalOpen(true);
             }}
             onToggleStatus={handleToggleStatus}
+            onChangeId={isAdmin ? setChangingIdFor : undefined}
+            onDelete={isAdmin ? setDeleting : undefined}
           />
 
           {/* Add Student Modal */}
@@ -269,6 +274,36 @@ export default function StudentsPage() {
               />
             )}
           </Modal>
+
+          {/* Admin: change Student ID */}
+          <ChangeStudentIdModal
+            student={changingIdFor}
+            onClose={() => setChangingIdFor(null)}
+            onDone={async ({ title, text, reprint }) => {
+              setChangingIdFor(null);
+              if (reprint) toast.warning(title, text);
+              else toast.success(title, text);
+              await loadStudents();
+            }}
+            onError={(msg) => toast.error("Could not change ID", msg)}
+          />
+
+          {/* Admin: delete student */}
+          <DeleteStudentModal
+            student={deleting}
+            onClose={() => setDeleting(null)}
+            onDeactivateInstead={async (s) => {
+              setDeleting(null);
+              if (s.status === "ACTIVE") await handleToggleStatus(s.studentId, "ACTIVE");
+              else toast.info("Already inactive", `${s.fullName} is already marked inactive.`);
+            }}
+            onDone={async ({ title, text }) => {
+              setDeleting(null);
+              toast.success(title, text);
+              await loadStudents();
+            }}
+            onError={(msg) => toast.error("Could not delete student", msg)}
+          />
 
           {/* CSV Import Modal */}
           <CsvImportModal
