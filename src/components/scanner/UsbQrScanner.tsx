@@ -203,7 +203,7 @@ export const UsbQrScanner: React.FC<UsbQrScannerProps> = ({
   const needsClick = status === "window-unfocused" || status === "text-field";
 
   return (
-    <div className="bg-slate-900 text-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-slate-800 relative overflow-hidden">
+    <div className="glass-dark bg-slate-900 text-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-slate-800 relative overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center justify-between pb-4 border-b border-slate-800">
         <div className="flex items-center gap-2">

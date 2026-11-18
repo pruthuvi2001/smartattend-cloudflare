@@ -1,4 +1,20 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
+import {
+  THEMED_HUES,
+  themedScale,
+  surfaceWhite,
+  screenVariables,
+  originalVariables,
+} from "./src/theme/palette";
+
+/** One colour role (bg / fg / line) for every themed hue, as Tailwind colour scales. */
+const roleColors = (role: "bg" | "fg" | "line") =>
+  Object.fromEntries(THEMED_HUES.map((hue) => [hue, themedScale(role, hue)]));
+
+const bgColors = { ...roleColors("bg"), white: surfaceWhite };
+const fgColors = roleColors("fg");
+const lineColors = roleColors("line");
 
 const config: Config = {
   content: [
@@ -8,7 +24,20 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Same class names as before (bg-white, text-slate-900, ...); the colours
+      // come from CSS variables so screen and print can differ. See src/theme/palette.ts.
+      backgroundColor: bgColors,
+      gradientColorStops: bgColors,
+      boxShadowColor: bgColors,
+      textColor: fgColors,
+      placeholderColor: fgColors,
+      borderColor: lineColors,
+      divideColor: lineColors,
+      ringColor: lineColors,
+      outlineColor: lineColors,
+      ringOffsetColor: { DEFAULT: "rgb(var(--c-page-bg))" },
       colors: {
+        // Kept for any `*-brand-*` utilities outside the roles above.
         brand: {
           50: '#eef2ff',
           100: '#e0e7ff',
@@ -39,6 +68,18 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    plugin(({ addBase }) => {
+      const original = originalVariables();
+      addBase({
+        ":root": { ...screenVariables(), colorScheme: "dark" },
+        // Student ID card preview and anything else that must look like paper.
+        ".keep-light": { ...original, colorScheme: "light" },
+        "@media print": {
+          ":root, .keep-light": { ...original, colorScheme: "light" },
+        },
+      });
+    }),
+  ],
 };
 export default config;

@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { School, Lock, Mail, Eye, EyeOff, ShieldCheck, UserCheck, Sparkles, QrCode } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { ChristmasLights } from "@/components/theme/ChristmasLights";
+import { SantaHat } from "@/components/theme/SantaHat";
+import { FESTIVE_SEASON } from "@/components/theme/festive";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -59,7 +62,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Fullscreen Video Background */}
-      <div className="absolute inset-0 z-0 bg-slate-950">
+      <ChristmasLights count={22} className="absolute inset-x-0 top-0 z-20" />
+      <div className="absolute inset-0 z-0 bg-transparent">
         <video
           autoPlay
           muted
@@ -72,7 +76,7 @@ export default function LoginPage() {
           <source src="/videos/login-bg.mp4" type="video/mp4" />
         </video>
         {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/10 to-slate-950/50" />
       </div>
 
       {/* Ambient glow blobs on top of video for extra depth */}
@@ -81,15 +85,21 @@ export default function LoginPage() {
 
       {/* Header Container */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10 relative">
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-indigo-600/90 backdrop-blur-sm flex items-center justify-center text-white shadow-xl shadow-indigo-600/40 mb-4 border border-white/20">
+        <div className="relative mx-auto w-14 h-14 rounded-2xl bg-indigo-600/90 backdrop-blur-sm flex items-center justify-center text-white shadow-xl shadow-indigo-600/40 mb-4 border border-white/20">
           <School className="w-8 h-8" />
+          <SantaHat className="absolute -top-6 -left-4 w-11 h-9 -rotate-[18deg]" />
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">
           WISDOM
         </h2>
         <p className="mt-1.5 text-xs sm:text-sm text-slate-300">
-          Powered By Banana Kingdom. 
+          Powered By Banana Kingdom.
         </p>
+        {FESTIVE_SEASON && (
+          <p className="festive-decor mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200 backdrop-blur-sm">
+            🎄 Merry Christmas &amp; Happy New Year
+          </p>
+        )}
       </div>
 
       {/* Liquid Glass Card Container */}

@@ -10,7 +10,7 @@ export const MobileHeader: React.FC<{ onOpenDrawer: () => void }> = ({ onOpenDra
   const { role } = useAuth();
 
   return (
-    <header className="lg:hidden h-16 bg-slate-900 text-white px-4 flex items-center justify-between border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <header className="glass-dark lg:hidden h-16 bg-slate-900 text-white px-4 flex items-center justify-between border-b border-slate-800 sticky top-0 z-30 shadow-md">
       <div className="flex items-center gap-3">
         <button
           onClick={onOpenDrawer}

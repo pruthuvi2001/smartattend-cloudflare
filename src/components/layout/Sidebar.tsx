@@ -19,6 +19,9 @@ import {
 import { clsx } from "clsx";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Badge } from "@/components/ui/Badge";
+import { SantaHat } from "@/components/theme/SantaHat";
+import { FestiveMotionToggle } from "@/components/theme/FestiveMotionToggle";
+import { FESTIVE_SEASON } from "@/components/theme/festive";
 
 export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobile }) => {
   const pathname = usePathname();
@@ -43,12 +46,13 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
   };
 
   return (
-    <aside className="w-64 h-screen bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 border-r border-slate-800">
+    <aside className="glass-dark w-64 h-screen bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 border-r border-slate-800">
       {/* Brand Header */}
       <div>
         <div className="p-6 flex items-center gap-3 border-b border-slate-800/80">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+          <div className="relative w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
             <School className="w-5 h-5" />
+            <SantaHat className="absolute -top-4 -left-3 w-8 h-7 -rotate-[18deg]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -58,6 +62,11 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
               </span>
             </div>
             <p className="text-[11px] text-slate-400">Student Attendance Management</p>
+            {FESTIVE_SEASON && (
+              <p className="festive-decor mt-1 text-[11px] font-semibold text-amber-300">
+                🎄 Merry Christmas!
+              </p>
+            )}
           </div>
         </div>
 
@@ -161,13 +170,16 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
             </div>
           </div>
 
-          <button
-            onClick={() => logout()}
-            title="Sign Out"
-            className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors shrink-0"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center shrink-0">
+            <FestiveMotionToggle />
+            <button
+              onClick={() => logout()}
+              title="Sign Out"
+              className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </aside>

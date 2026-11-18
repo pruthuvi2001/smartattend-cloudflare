@@ -56,7 +56,7 @@ export const StudentQrBadge: React.FC<StudentQrBadgeProps> = ({
       {/* Physical ID Card Preview Container */}
       <div
         id="printable-badge"
-        className="w-full max-w-sm mx-auto bg-white rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none print:m-0 print:max-w-none"
+        className="keep-light w-full max-w-sm mx-auto bg-white rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden print:border-none print:shadow-none print:m-0 print:max-w-none"
       >
         {/* Card Header */}
         <div className="bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 text-white p-4 flex items-center justify-between">

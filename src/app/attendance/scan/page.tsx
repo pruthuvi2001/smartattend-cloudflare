@@ -75,6 +75,8 @@ export default function AttendanceScanPage() {
             particleCount: 40,
             spread: 60,
             origin: { y: 0.6 },
+            colors: ["#dc1f36", "#ff6b78", "#10b981", "#ffcc4d", "#ffffff"],
+            shapes: ["circle", "star"],
           });
         } catch {}
       } else if (result.status === "ALREADY_MARKED") {

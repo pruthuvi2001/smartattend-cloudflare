@@ -33,7 +33,7 @@ export default function Home() {
   }, [user, userProfile, router]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-3">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-transparent gap-3">
       <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       <p className="text-sm font-medium text-slate-500">Loading SmartAttend...</p>
     </div>

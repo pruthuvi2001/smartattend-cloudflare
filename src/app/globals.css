@@ -7,11 +7,16 @@
 }
 
 body {
-  color: #0f172a;
-  background-color: #f8fafc;
+  color: rgb(var(--c-page-fg));
+  background-color: rgb(var(--c-page-bg));
   font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgb(220 31 54 / 0.45);
+  color: #fff;
 }
 
 /* Custom Scrollbar */
@@ -21,16 +26,153 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: rgb(var(--c-bg-slate-950));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgb(var(--c-line-slate-300));
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgb(var(--c-line-slate-400));
+}
+
+/* ---------------------------------------------------------------
+   Liquid glass
+   Cards and panels (Tailwind `bg-white`) are see-through on screen:
+   blurred, slightly saturated, with a bright top edge like glass.
+   Inputs and buttons stay flat. Print and `.keep-light` are untouched.
+   --------------------------------------------------------------- */
+@media screen {
+  .bg-white:not(input, textarea, select, button, .keep-light, .keep-light *),
+  .glass {
+    background-image: linear-gradient(
+      150deg,
+      rgb(255 255 255 / 0.075) 0%,
+      rgb(255 255 255 / 0.02) 38%,
+      rgb(255 255 255 / 0) 60%,
+      rgb(255 120 140 / 0.03) 100%
+    );
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      inset 0 -1px 0 rgb(0 0 0 / 0.25),
+      0 18px 40px -18px rgb(0 0 0 / 0.8);
+  }
+
+  /* Dialogs and toasts sit over content, so they are more solid. */
+  .glass-strong {
+    --a-white: 0.9;
+  }
+
+  /* Panels that were solid dark (sidebar, scanner) become dark glass. */
+  .glass-dark {
+    background-color: rgb(var(--c-bg-slate-950) / 0.62) !important;
+    background-image: linear-gradient(
+      160deg,
+      rgb(255 255 255 / 0.06) 0%,
+      rgb(255 255 255 / 0) 45%
+    );
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+}
+
+/* Native date pickers, selects and scrollbars follow the theme. */
+input,
+select,
+textarea {
+  color-scheme: inherit;
+}
+
+/* ---------------------------------------------------------------
+   Festive effects (backdrop scene, lights, sleigh). Pure decoration:
+   pointer-events off, hidden in print, still for reduced motion.
+   --------------------------------------------------------------- */
+@keyframes festive-twinkle {
+  0%, 100% { opacity: 1; filter: brightness(1.15); }
+  45% { opacity: 0.35; filter: brightness(0.7); }
+  55% { opacity: 0.45; filter: brightness(0.75); }
+}
+
+@keyframes festive-star {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.25; }
+}
+
+@keyframes festive-aurora {
+  0% { transform: translate3d(-4%, 0, 0) scale(1); }
+  50% { transform: translate3d(5%, -3%, 0) scale(1.12); }
+  100% { transform: translate3d(-4%, 0, 0) scale(1); }
+}
+
+@keyframes festive-sleigh {
+  0% { transform: translate3d(-30vw, 6vh, 0) rotate(-4deg); }
+  100% { transform: translate3d(130vw, -10vh, 0) rotate(-8deg); }
+}
+
+@keyframes festive-smoke {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.35; }
+  100% { transform: translate(18px, -70px) scale(1.8); opacity: 0; }
+}
+
+@keyframes festive-glow {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+.festive-twinkle {
+  animation: festive-twinkle var(--twinkle-duration, 2.4s) ease-in-out var(--twinkle-delay, 0s) infinite;
+}
+
+.festive-star {
+  animation: festive-star var(--twinkle-duration, 3s) ease-in-out var(--twinkle-delay, 0s) infinite;
+}
+
+.festive-aurora {
+  animation: festive-aurora var(--aurora-duration, 26s) ease-in-out infinite;
+}
+
+.festive-sleigh {
+  animation: festive-sleigh 22s linear 4s infinite;
+}
+
+.festive-smoke {
+  animation: festive-smoke 6s ease-out infinite;
+}
+
+.festive-glow {
+  animation: festive-glow 4s ease-in-out infinite;
+}
+
+/* "Snow & motion" switched off, or the device asks for less motion. */
+.festive-still .festive-twinkle,
+.festive-still .festive-star,
+.festive-still .festive-aurora,
+.festive-still .festive-smoke,
+.festive-still .festive-glow {
+  animation: none;
+}
+
+.festive-still .festive-sleigh {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .festive-twinkle,
+  .festive-star,
+  .festive-aurora,
+  .festive-smoke,
+  .festive-glow {
+    animation: none;
+  }
+  .festive-sleigh {
+    display: none;
+  }
 }
 
 /* Scanner target box styling */
@@ -55,7 +197,8 @@ body {
     background: white !important;
     color: black !important;
   }
-  .no-print {
+  .no-print,
+  .festive-decor {
     display: none !important;
   }
   .print-only {
