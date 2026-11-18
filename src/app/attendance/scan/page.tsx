@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -17,7 +17,7 @@ import { SystemSettings, DEFAULT_SETTINGS } from "@/types/settings";
 import { SessionScanItem } from "@/types/attendance";
 import { MonthlyFeeRecord, RecordPaymentInput } from "@/types/payment";
 import { Student } from "@/types/student";
-import { QrCameraScanner } from "@/components/scanner/QrCameraScanner";
+import { UsbQrScanner } from "@/components/scanner/UsbQrScanner";
 import { ScanSuccessCard } from "@/components/scanner/ScanSuccessCard";
 import { ScanHistoryList } from "@/components/scanner/ScanHistoryList";
 import { PaymentDetailsModal } from "@/components/payments/PaymentDetailsModal";
@@ -31,8 +31,15 @@ export default function AttendanceScanPage() {
   const { user, userProfile } = useAuth();
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [activeResult, setActiveResult] = useState<ScanAttendanceResult | null>(null);
+  // Bumped on every result so the result card restarts its countdown.
+  const [resultKey, setResultKey] = useState(0);
   const [sessionScans, setSessionScans] = useState<SessionScanItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // A USB scanner can read the next card before the previous one is saved,
+  // so scans wait in a queue and are saved one at a time instead of being dropped.
+  const scanQueueRef = useRef<string[]>([]);
+  const queueRunningRef = useRef(false);
 
   // Fee Details Modal from Scanner
   const [feeModalOpen, setFeeModalOpen] = useState(false);
@@ -46,10 +53,7 @@ export default function AttendanceScanPage() {
     getStudents().then(setStudents);
   }, []);
 
-  const handleScan = async (rawQr: string) => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-
+  const processScan = async (rawQr: string) => {
     try {
       const markedBy = {
         uid: user?.uid || userProfile?.userId || "staff-001",
@@ -58,6 +62,7 @@ export default function AttendanceScanPage() {
 
       const result = await recordAttendanceByQr(rawQr, markedBy, settings.timezone);
       setActiveResult(result);
+      setResultKey((k) => k + 1);
 
       const now = new Date();
       const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -97,14 +102,36 @@ export default function AttendanceScanPage() {
         status: "ERROR",
         message: err?.message || "Failed to process attendance record.",
       });
-    } finally {
-      setIsProcessing(false);
+      setResultKey((k) => k + 1);
     }
   };
 
-  const handleDismissCard = () => {
+  // Always run the latest processScan (it reads current settings and user).
+  const processScanRef = useRef(processScan);
+  processScanRef.current = processScan;
+
+  const handleScan = useCallback((rawQr: string) => {
+    scanQueueRef.current.push(rawQr);
+    if (queueRunningRef.current) return;
+
+    queueRunningRef.current = true;
+    setIsProcessing(true);
+    (async () => {
+      try {
+        while (scanQueueRef.current.length > 0) {
+          const next = scanQueueRef.current.shift()!;
+          await processScanRef.current(next);
+        }
+      } finally {
+        queueRunningRef.current = false;
+        setIsProcessing(false);
+      }
+    })();
+  }, []);
+
+  const handleDismissCard = useCallback(() => {
     setActiveResult(null);
-  };
+  }, []);
 
   const handleClearSession = () => {
     setSessionScans([]);
@@ -169,7 +196,7 @@ export default function AttendanceScanPage() {
                   Attendance Scanner
                 </h1>
                 <p className="text-xs text-slate-500">
-                  Continuous Camera QR Recognition • {settings.schoolName}
+                  USB QR Scanner • {settings.schoolName}
                 </p>
               </div>
             </div>
@@ -177,21 +204,22 @@ export default function AttendanceScanPage() {
 
           {/* Scanner or Instant Result Overlay */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Viewfinder Column */}
+            {/* Scanner Column: the scanner stays mounted so it keeps listening while a result shows */}
             <div className="space-y-4">
-              {activeResult ? (
+              {activeResult && (
                 <ScanSuccessCard
+                  key={resultKey}
                   result={activeResult}
                   onDismiss={handleDismissCard}
                   autoDismissMs={3500}
                   onViewFeeStatus={handleViewFeeStatus}
                 />
-              ) : (
-                <QrCameraScanner
-                  onScan={handleScan}
-                  isProcessing={isProcessing}
-                />
               )}
+              <UsbQrScanner
+                onScan={handleScan}
+                isProcessing={isProcessing}
+                enabled={!feeModalOpen && !payModalOpen}
+              />
             </div>
 
             {/* Session History Feed Column */}

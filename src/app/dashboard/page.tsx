@@ -138,7 +138,7 @@ export default function DashboardPage() {
                         </div>
                         <div>
                           <h5 className="text-xs font-bold text-indigo-950">Launch Attendance Scanner</h5>
-                          <p className="text-[11px] text-indigo-700">Scan ID card QR codes via camera</p>
+                          <p className="text-[11px] text-indigo-700">Scan ID card QR codes with the QR scanner</p>
                         </div>
                       </div>
                       <ArrowRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-1 transition-transform" />

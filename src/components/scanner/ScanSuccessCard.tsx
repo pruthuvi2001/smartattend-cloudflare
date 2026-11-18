@@ -181,7 +181,7 @@ export const ScanSuccessCard: React.FC<ScanSuccessCardProps> = ({
         )}
 
         <div className="mt-3 flex items-center justify-between text-xs text-amber-100">
-          <span>Resuming camera...</span>
+          <span>Ready for next student...</span>
           <Button
             size="sm"
             variant="ghost"
