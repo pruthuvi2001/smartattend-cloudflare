@@ -1,15 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ScanQrCode, Keyboard, RefreshCw, MousePointerClick, PauseCircle } from "lucide-react";
+import { ScanQrCode, Keyboard, RefreshCw, MousePointerClick, PauseCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { parseStudentQrPayload } from "@/lib/utils/qrUtils";
-import {
-  createKeyboardScanBuffer,
-  DEFAULT_SCAN_IDLE_RESET_MS,
-} from "@/lib/utils/keyboardScanBuffer";
+import { createKeyboardScanBuffer } from "@/lib/utils/keyboardScanBuffer";
 
 export interface UsbQrScannerProps {
   /** Called with the parsed student ID for every completed scan. */
@@ -19,9 +16,6 @@ export interface UsbQrScannerProps {
   /** Set to false while another dialog on the page needs the keyboard. */
   enabled?: boolean;
 }
-
-/** The same card read twice within this window is treated as one scan. */
-const REPEAT_SCAN_IGNORE_MS = 3000;
 
 const NON_TEXT_INPUT_TYPES = [
   "button",
@@ -69,33 +63,25 @@ export const UsbQrScanner: React.FC<UsbQrScannerProps> = ({
   }, [onScan]);
 
   const bufferRef = useRef(createKeyboardScanBuffer());
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastScanRef = useRef<{ text: string; time: number }>({ text: "", time: 0 });
 
   const listening = enabled && !manualModalOpen;
 
+  // Every completed scan is sent on; repeats are handled by the attendance
+  // service, which reports "already marked" without writing a second record.
   const submitScannedCode = useCallback((raw: string) => {
     const studentId = parseStudentQrPayload(raw);
-    if (!studentId) return;
+    if (studentId) onScanRef.current(studentId);
+  }, []);
 
-    const now = Date.now();
-    if (
-      lastScanRef.current.text === studentId &&
-      now - lastScanRef.current.time < REPEAT_SCAN_IGNORE_MS
-    ) {
-      return;
-    }
-    lastScanRef.current = { text: studentId, time: now };
-    onScanRef.current(studentId);
+  const clearLiveInput = useCallback(() => {
+    bufferRef.current.reset();
+    setLiveInput("");
   }, []);
 
   // Page-wide keyboard listener that collects the scanner's keystrokes.
+  // No timeout: input is kept until Enter/Tab submits it or Escape clears it.
   useEffect(() => {
     const buffer = bufferRef.current;
-    const clearLiveInput = () => {
-      buffer.reset();
-      setLiveInput("");
-    };
 
     if (!listening) {
       clearLiveInput();
@@ -108,28 +94,25 @@ export const UsbQrScanner: React.FC<UsbQrScannerProps> = ({
       // Someone is typing into a real text box: leave it alone.
       if (isTextEntryElement(e.target)) return;
 
-      const result = buffer.handleKey(e.key, Date.now());
+      const result = buffer.handleKey(e.key);
       if (result.type === "ignored") return;
 
       // Stop Enter/Space from also pressing whichever button has focus.
       e.preventDefault();
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
 
       if (result.type === "submit") {
         setLiveInput("");
         submitScannedCode(result.value);
       } else {
         setLiveInput(result.value);
-        idleTimerRef.current = setTimeout(clearLiveInput, DEFAULT_SCAN_IDLE_RESET_MS);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [listening, submitScannedCode]);
+  }, [listening, submitScannedCode, clearLiveInput]);
 
   // Track whether keystrokes can reach this page at all.
   useEffect(() => {
@@ -260,9 +243,22 @@ export const UsbQrScanner: React.FC<UsbQrScannerProps> = ({
           <p className="text-xs text-slate-400 max-w-xs mx-auto">{view.detail}</p>
         </div>
 
-        <div className="w-full max-w-xs rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-left min-h-[2.25rem] truncate">
+        <div className="w-full max-w-xs flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-left min-h-[2.25rem]">
           {liveInput ? (
-            <span className="text-indigo-300">{liveInput}</span>
+            <>
+              <span className="flex-1 truncate text-indigo-300">{liveInput}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearLiveInput();
+                }}
+                title="Clear (Esc)"
+                className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </>
           ) : (
             <span className="text-slate-600">Waiting for scan...</span>
           )}
