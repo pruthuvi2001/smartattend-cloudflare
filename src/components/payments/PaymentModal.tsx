@@ -7,10 +7,9 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { formatDisplayDate } from "@/lib/utils/dateUtils";
-import { formatMonthName, calculatePaymentStatus } from "@/lib/payments/paymentService";
-import { DollarSign } from "lucide-react";
+import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
+import { formatMonthName } from "@/lib/payments/paymentService";
+import { Info } from "lucide-react";
 
 export interface PaymentModalProps {
   isOpen: boolean;
@@ -18,6 +17,8 @@ export interface PaymentModalProps {
   students: Student[];
   initialStudent?: Student | null;
   initialRecord?: MonthlyFeeRecord | null;
+  /** This month's records, used to find the fee and status when a student is picked from the list. */
+  records?: MonthlyFeeRecord[];
   monthKey: string;
   defaultMonthlyFee?: number;
   currencySymbol?: string;
@@ -25,12 +26,17 @@ export interface PaymentModalProps {
   isLoading?: boolean;
 }
 
+/**
+ * Records a monthly fee payment. There are no part payments: the amount is always
+ * the full amount still due for the month and cannot be changed here.
+ */
 export const PaymentModal: React.FC<PaymentModalProps> = ({
   isOpen,
   onClose,
   students,
   initialStudent,
   initialRecord,
+  records,
   monthKey,
   defaultMonthlyFee = 5000,
   currencySymbol = "Rs.",
@@ -38,7 +44,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   isLoading = false,
 }) => {
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [referenceNumber, setReferenceNumber] = useState<string>("");
@@ -53,7 +58,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     } else {
       setSelectedStudentId("");
     }
-    setPaymentAmount("");
     setPaymentDate(new Date().toISOString().split("T")[0]);
     setPaymentMethod("CASH");
     setReferenceNumber("");
@@ -62,14 +66,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [isOpen, initialStudent, initialRecord]);
 
   const selectedStudent = students.find((s) => s.studentId === selectedStudentId);
-  const monthlyFee = initialRecord ? initialRecord.monthlyFee : defaultMonthlyFee;
-  const alreadyPaid = initialRecord ? initialRecord.totalPaid : 0;
-  const currentBalance = Math.max(0, monthlyFee - alreadyPaid);
-
-  const enteredAmount = parseFloat(paymentAmount) || 0;
-  const newTotalPaid = alreadyPaid + enteredAmount;
-  const newBalance = Math.max(0, monthlyFee - newTotalPaid);
-  const newStatus = calculatePaymentStatus(monthlyFee, newTotalPaid);
+  const record =
+    initialRecord ??
+    records?.find((r) => r.studentId.toUpperCase() === selectedStudentId.toUpperCase()) ??
+    null;
+  const monthlyFee = record ? record.monthlyFee : defaultMonthlyFee;
+  const alreadyPaid = record ? record.totalPaid || 0 : 0;
+  const amountDue = Math.max(0, monthlyFee - alreadyPaid);
+  const currentStatus = record?.status || "UNPAID";
+  const cannotPay = currentStatus === "PAID" || currentStatus === "WAIVED" || amountDue <= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +85,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       return;
     }
 
-    if (enteredAmount <= 0) {
-      setError("Payment amount must be greater than 0.");
+    if (currentStatus === "PAID") {
+      setError(`This student has already paid for ${formatMonthName(monthKey)}.`);
+      return;
+    }
+    if (currentStatus === "WAIVED") {
+      setError(`The ${formatMonthName(monthKey)} fee is waived for this student.`);
+      return;
+    }
+    if (amountDue <= 0) {
+      setError("Nothing is due for this month.");
       return;
     }
 
@@ -89,7 +102,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       await onSubmit({
         studentId: selectedStudentId,
         monthKey,
-        amount: enteredAmount,
+        amount: amountDue,
         paymentDate,
         paymentMethod,
         referenceNumber,
@@ -106,25 +119,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return <Badge variant="success" size="sm">PAID</Badge>;
-      case "PARTIALLY_PAID":
-        return <Badge variant="warning" size="sm">PARTIALLY PAID</Badge>;
-      case "WAIVED":
-        return <Badge variant="purple" size="sm">WAIVED</Badge>;
-      default:
-        return <Badge variant="danger" size="sm">UNPAID</Badge>;
-    }
-  };
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Record Monthly Payment"
-      description={`Manual bookkeeping entry for ${formatMonthName(monthKey)}.`}
+      description={`Full monthly fee for ${formatMonthName(monthKey)}.`}
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -151,8 +151,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             required
           />
         ) : (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-            <div>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase text-slate-500">Student</p>
               <h4 className="text-sm font-bold text-slate-900">
                 {initialRecord?.studentNameSnapshot || selectedStudent?.fullName}
@@ -161,42 +161,48 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {selectedStudentId} • {initialRecord?.classSnapshot || selectedStudent?.class}
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <span className="text-[11px] font-semibold text-slate-500 block">Current Status</span>
-              {getStatusBadge(initialRecord?.status || "UNPAID")}
+              <PaymentStatusBadge status={currentStatus} />
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-center text-xs">
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase block">Monthly Fee</span>
-            <strong className="text-slate-900 text-sm font-black">{currencySymbol} {monthlyFee.toLocaleString()}</strong>
+        {selectedStudentId && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Amount to pay</p>
+              <p className="text-xs text-emerald-700/90 mt-0.5">
+                {alreadyPaid > 0
+                  ? `Rest of the ${currencySymbol} ${monthlyFee.toLocaleString()} fee (${currencySymbol} ${alreadyPaid.toLocaleString()} was received earlier).`
+                  : "Full monthly fee. Part payments are not allowed."}
+              </p>
+            </div>
+            <strong className="text-xl font-black text-emerald-700 whitespace-nowrap">
+              {currencySymbol} {amountDue.toLocaleString()}
+            </strong>
           </div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase block">Already Paid</span>
-            <strong className="text-emerald-700 text-sm font-black">{currencySymbol} {alreadyPaid.toLocaleString()}</strong>
+        )}
+
+        {selectedStudentId && currentStatus === "NO_CLASS" && (
+          <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-800 flex gap-2">
+            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              This student has no Present or Late day in {formatMonthName(monthKey)} yet, so the fee is not due.
+              Saving now records it as paid in advance.
+            </span>
           </div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase block">Current Balance</span>
-            <strong className="text-rose-700 text-sm font-black">{currencySymbol} {currentBalance.toLocaleString()}</strong>
+        )}
+
+        {selectedStudentId && (currentStatus === "PAID" || currentStatus === "WAIVED") && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+            {currentStatus === "PAID"
+              ? `Already paid for ${formatMonthName(monthKey)}. Nothing to record.`
+              : `The fee for ${formatMonthName(monthKey)} is waived. Nothing to record.`}
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label={`Payment Amount (${currencySymbol}) *`}
-            type="number"
-            min="1"
-            step="1"
-            placeholder={`e.g. ${currentBalance > 0 ? currentBalance : monthlyFee}`}
-            value={paymentAmount}
-            onChange={(e) => setPaymentAmount(e.target.value)}
-            leftIcon={<DollarSign className="w-4 h-4" />}
-            required
-            autoFocus
-          />
-
           <Input
             label="Payment Date *"
             type="date"
@@ -204,9 +210,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             onChange={(e) => setPaymentDate(e.target.value)}
             required
           />
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Payment Method *"
             value={paymentMethod}
@@ -217,48 +221,38 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               { label: "Other (Cheque / Sponsor)", value: "OTHER" },
             ]}
           />
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Reference / Receipt # (Optional)"
             placeholder="e.g. REC-1049 / TXN-998"
             value={referenceNumber}
             onChange={(e) => setReferenceNumber(e.target.value)}
           />
+
+          <Input
+            label="Notes (Optional)"
+            placeholder="e.g. Paid by father at the desk"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </div>
-
-        <Input
-          label="Notes (Optional)"
-          placeholder="e.g. Paid by father at administration desk"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-
-        {enteredAmount > 0 && (
-          <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2 text-xs text-indigo-950">
-            <p className="font-bold text-[11px] uppercase tracking-wider text-indigo-700">
-              Calculation Preview:
-            </p>
-            <div className="flex items-center justify-between border-b border-indigo-200/60 pb-1.5">
-              <span>New Total Paid:</span>
-              <strong className="font-mono text-sm">{currencySymbol} {newTotalPaid.toLocaleString()}</strong>
-            </div>
-            <div className="flex items-center justify-between border-b border-indigo-200/60 pb-1.5">
-              <span>New Balance:</span>
-              <strong className="font-mono text-sm">{currencySymbol} {newBalance.toLocaleString()}</strong>
-            </div>
-            <div className="flex items-center justify-between pt-0.5">
-              <span>New Status:</span>
-              <div>{getStatusBadge(newStatus)}</div>
-            </div>
-          </div>
-        )}
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
           <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading} className="font-bold">
-            Save Payment Record
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={isLoading}
+            disabled={!selectedStudentId || cannotPay}
+            className="font-bold"
+          >
+            {selectedStudentId && !cannotPay
+              ? `Save Payment (${currencySymbol} ${amountDue.toLocaleString()})`
+              : "Save Payment"}
           </Button>
         </div>
       </form>

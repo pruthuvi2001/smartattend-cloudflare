@@ -1,4 +1,15 @@
-export type PaymentStatus = 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'WAIVED';
+/**
+ * Payment status the app shows for one student and one month.
+ * - PAID / UNPAID / WAIVED are saved in Firestore.
+ * - NO_CLASS is never saved: it means the student was not marked Present or Late
+ *   on any day that month, so no fee is due (see src/lib/payments/feeRules.ts).
+ * Part payments were removed. Old records may still say "PARTIALLY_PAID";
+ * they are read as UNPAID (or PAID if fully covered) by normalizeStoredStatus().
+ */
+export type PaymentStatus = 'PAID' | 'UNPAID' | 'WAIVED' | 'NO_CLASS';
+
+/** Statuses that are written to Firestore. */
+export type StoredPaymentStatus = 'PAID' | 'UNPAID' | 'WAIVED';
 
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'OTHER';
 
@@ -34,6 +45,8 @@ export interface MonthlyFeeRecord {
   lastPaymentDate?: string;
   transactions: PaymentTransaction[];
   waiveReason?: string;
+  /** Days marked Present or Late in this month. Worked out for display only; never saved. */
+  attendedDays?: number;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -45,9 +58,9 @@ export interface MonthlyPaymentsSummary {
   monthName: string;
   totalStudents: number;
   paidCount: number;
-  partiallyPaidCount: number;
   unpaidCount: number;
   waivedCount: number;
+  noClassCount: number;       // students with no Present/Late day this month (no fee)
   totalExpected: number;
   totalCollected: number;
   outstandingBalance: number;

@@ -14,11 +14,24 @@ import {
   PaymentTransaction,
   MonthlyPaymentsSummary,
   RecordPaymentInput,
-  PaymentStatus
+  StoredPaymentStatus
 } from "@/types/payment";
 import { getStudents, getStudentById } from "../students/studentService";
+import { getAttendanceForDateRange, getStudentAttendanceHistory } from "../attendance/attendanceService";
 import { formatDisplayDate, format12HourTime, DEFAULT_TIMEZONE } from "../utils/dateUtils";
 import { sendPaymentEmailNotification } from "../notifications/emailService";
+import {
+  applyFeeRule,
+  countAttendedDays,
+  formatMonthName,
+  getAttendedDays,
+  makeDynamicFeeRecord,
+  monthDateRange,
+  monthKeyOf,
+  normalizeStoredStatus,
+} from "./feeRules";
+
+export { formatMonthName };
 
 const COLLECTION_NAME = "feeRecords";
 const LOCAL_STORAGE_KEY = "smartattend_local_fees";
@@ -59,18 +72,6 @@ export function getCurrentMonthKey(dateInput?: Date | string, timezone: string =
 }
 
 /**
- * Formats "2026-09" to "September 2026"
- */
-export function formatMonthName(monthKey: string): string {
-  if (!monthKey || !monthKey.includes('-')) return monthKey || '';
-  const [yearStr, monthStr] = monthKey.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10) - 1;
-  const d = new Date(year, month, 1);
-  return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-}
-
-/**
  * Computes previous month key e.g. "2026-09" -> "2026-08"
  */
 export function getPreviousMonthKey(monthKey: string): string {
@@ -99,18 +100,43 @@ export function getNextMonthKey(monthKey: string): string {
 }
 
 /**
- * Calculates payment status based on fee and paid amounts
+ * Saved payment status from the fee and the amount paid. There are no part
+ * payments: anything less than the full fee is UNPAID.
  */
-export function calculatePaymentStatus(monthlyFee: number, totalPaid: number, isWaived: boolean = false): PaymentStatus {
+export function calculatePaymentStatus(monthlyFee: number, totalPaid: number, isWaived: boolean = false): StoredPaymentStatus {
   if (isWaived) return "WAIVED";
   if (totalPaid <= 0) return "UNPAID";
   if (totalPaid >= monthlyFee) return "PAID";
-  return "PARTIALLY_PAID";
+  return "UNPAID";
+}
+
+/** A saved record as the app reads it now (old "PARTIALLY_PAID" becomes UNPAID or PAID). */
+function normalizeSavedRecord(raw: MonthlyFeeRecord): MonthlyFeeRecord {
+  return { ...raw, status: normalizeStoredStatus(raw) };
 }
 
 /**
- * Fetches all fee records for a given monthKey and merges with active student roster.
- * Unrecorded active students are dynamically rendered as UNPAID.
+ * Fetches saved fee records for every month from startKey to endKey ("YYYY-MM"), inclusive.
+ * Read-only. Months with nothing saved are simply missing from the result.
+ */
+export async function getFeeRecordsForMonthRange(startKey: string, endKey: string): Promise<MonthlyFeeRecord[]> {
+  try {
+    const colRef = collection(db, COLLECTION_NAME);
+    const q = query(colRef, where("monthKey", ">=", startKey), where("monthKey", "<=", endKey));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => normalizeSavedRecord(d.data() as MonthlyFeeRecord));
+  } catch (err) {
+    console.debug("Firestore getFeeRecordsForMonthRange fallback:", err);
+  }
+  return getLocalFees()
+    .filter((r) => r.monthKey >= startKey && r.monthKey <= endKey)
+    .map(normalizeSavedRecord);
+}
+
+/**
+ * Fetches all fee records for a given monthKey and merges them with the active student roster.
+ * Fee rule: a student owes the month only if they were marked Present or Late at least once
+ * that month; otherwise the month shows as NO_CLASS (no fee). Nothing is written.
  */
 export async function getMonthlyFeeRecords(
   monthKey: string,
@@ -144,51 +170,37 @@ export async function getMonthlyFeeRecords(
     recordMap.set(r.studentId.toUpperCase(), r);
   });
 
+  // Who came to class this month (Present or Late). Read-only.
+  const { start, end } = monthDateRange(monthKey);
+  const attendedDays = countAttendedDays(await getAttendanceForDateRange(start, end));
+
   const mergedRecords: MonthlyFeeRecord[] = [];
   let paidCount = 0;
-  let partiallyPaidCount = 0;
   let unpaidCount = 0;
   let waivedCount = 0;
+  let noClassCount = 0;
   let totalExpected = 0;
   let totalCollected = 0;
+  let outstandingBalance = 0;
 
   activeStudents.forEach((student) => {
     const existing = recordMap.get(student.studentId.toUpperCase());
-    const feeAmount = existing ? existing.monthlyFee : defaultFee;
+    const base = existing ?? makeDynamicFeeRecord(student, monthKey, defaultFee);
+    const record = applyFeeRule(base, getAttendedDays(attendedDays, student.studentId, monthKey));
+    mergedRecords.push(record);
 
-    if (existing) {
-      mergedRecords.push(existing);
-      totalExpected += existing.monthlyFee;
-      totalCollected += existing.totalPaid;
-
-      if (existing.status === "PAID") paidCount++;
-      else if (existing.status === "PARTIALLY_PAID") partiallyPaidCount++;
-      else if (existing.status === "WAIVED") waivedCount++;
-      else unpaidCount++;
-    } else {
-      // Dynamic unrecorded representation
-      const dynamicRecord: MonthlyFeeRecord = {
-        feeRecordId: `${student.studentId.toUpperCase()}_${monthKey}`,
-        studentId: student.studentId.toUpperCase(),
-        studentNameSnapshot: student.fullName,
-        classId: student.classIds?.[0] || "grade-10",
-        classSnapshot: student.class || student.classDisplayNames?.[0] || "Grade 10",
-        monthKey,
-        monthName,
-        monthlyFee: feeAmount,
-        totalPaid: 0,
-        balance: feeAmount,
-        status: "UNPAID",
-        transactions: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: "system",
-        updatedBy: "system",
-      };
-
-      mergedRecords.push(dynamicRecord);
-      totalExpected += feeAmount;
+    totalCollected += record.totalPaid || 0;
+    if (record.status === "PAID") {
+      paidCount++;
+      totalExpected += record.monthlyFee;
+    } else if (record.status === "UNPAID") {
       unpaidCount++;
+      totalExpected += record.monthlyFee;
+      outstandingBalance += record.balance;
+    } else if (record.status === "WAIVED") {
+      waivedCount++;
+    } else {
+      noClassCount++;
     }
   });
 
@@ -199,17 +211,18 @@ export async function getMonthlyFeeRecords(
     return a.studentId.localeCompare(b.studentId);
   });
 
-  const outstandingBalance = Math.max(0, totalExpected - totalCollected);
-  const collectionRate = totalExpected > 0 ? Number(((totalCollected / totalExpected) * 100).toFixed(1)) : 0;
+  const collectionRate = totalExpected > 0
+    ? Number((Math.min(100, ((totalExpected - outstandingBalance) / totalExpected) * 100)).toFixed(1))
+    : 0;
 
   const summary: MonthlyPaymentsSummary = {
     monthKey,
     monthName,
     totalStudents: activeStudents.length,
     paidCount,
-    partiallyPaidCount,
     unpaidCount,
     waivedCount,
+    noClassCount,
     totalExpected,
     totalCollected,
     outstandingBalance,
@@ -234,7 +247,7 @@ export async function getStudentFeeRecord(
     const docRef = doc(db, COLLECTION_NAME, feeRecordId);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
-      return snap.data() as MonthlyFeeRecord;
+      return normalizeSavedRecord(snap.data() as MonthlyFeeRecord);
     }
   } catch (err) {
     console.debug("Firestore getStudentFeeRecord fallback:", err);
@@ -242,7 +255,7 @@ export async function getStudentFeeRecord(
 
   const local = getLocalFees();
   const found = local.find((r) => r.feeRecordId === feeRecordId);
-  if (found) return found;
+  if (found) return normalizeSavedRecord(found);
 
   // Fallback dynamic object
   const student = await getStudentById(upperId);
@@ -269,6 +282,22 @@ export async function getStudentFeeRecord(
 }
 
 /**
+ * A student's fee record for one month with the attendance rule applied (for display,
+ * e.g. the scanner's fee check). Read-only; never save the returned object.
+ */
+export async function getStudentFeeStatus(
+  studentId: string,
+  monthKey: string,
+  defaultFee: number = 5000
+): Promise<MonthlyFeeRecord | null> {
+  const record = await getStudentFeeRecord(studentId, monthKey, defaultFee);
+  if (!record) return null;
+  const history = await getStudentAttendanceHistory(studentId);
+  const attended = countAttendedDays(history.filter((r) => monthKeyOf(r.date) === monthKey));
+  return applyFeeRule(record, getAttendedDays(attended, studentId, monthKey));
+}
+
+/**
  * Records a payment transaction for a student in a specific month.
  * Preserves multi-payment history and atomically recalculates balances and statuses.
  */
@@ -283,10 +312,29 @@ export async function recordStudentPayment(input: RecordPaymentInput): Promise<M
     throw new Error(`Student ${upperId} not found.`);
   }
 
-  let currentRecord = await getStudentFeeRecord(upperId, input.monthKey, input.monthlyFee || 5000);
+  const currentRecord = await getStudentFeeRecord(upperId, input.monthKey, input.monthlyFee || 5000);
   const monthlyFee = input.monthlyFee !== undefined ? input.monthlyFee : (currentRecord ? currentRecord.monthlyFee : 5000);
-  const currentPaid = currentRecord ? currentRecord.totalPaid : 0;
+  const currentPaid = currentRecord ? currentRecord.totalPaid || 0 : 0;
   const currentTransactions = currentRecord ? currentRecord.transactions || [] : [];
+  const monthName = formatMonthName(input.monthKey);
+
+  // No part payments: a month is paid in one go, for the full amount still due.
+  const savedStatus = currentRecord ? normalizeStoredStatus(currentRecord) : "UNPAID";
+  if (savedStatus === "PAID") {
+    throw new Error(`${student.fullName} has already paid for ${monthName}.`);
+  }
+  if (savedStatus === "WAIVED") {
+    throw new Error(`The ${monthName} fee is waived for ${student.fullName}.`);
+  }
+  const amountDue = Math.max(0, monthlyFee - currentPaid);
+  if (amountDue <= 0) {
+    throw new Error(`Nothing is due for ${monthName}.`);
+  }
+  if (input.amount !== amountDue) {
+    throw new Error(
+      `Part payments are not allowed. The payment must be the full amount due (${amountDue.toLocaleString()}).`
+    );
+  }
 
   const newTotalPaid = currentPaid + input.amount;
   const newBalance = Math.max(0, monthlyFee - newTotalPaid);
@@ -418,7 +466,7 @@ export async function getStudentAllPaymentHistory(studentId: string): Promise<Mo
     const q = query(colRef, where("studentId", "==", upperId));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      const list = snap.docs.map((d) => d.data() as MonthlyFeeRecord);
+      const list = snap.docs.map((d) => normalizeSavedRecord(d.data() as MonthlyFeeRecord));
       list.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
       return list;
     }
@@ -427,6 +475,7 @@ export async function getStudentAllPaymentHistory(studentId: string): Promise<Mo
   const local = getLocalFees();
   return local
     .filter((r) => r.studentId.toUpperCase() === upperId)
+    .map(normalizeSavedRecord)
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
 }
 
@@ -452,6 +501,7 @@ export function exportMonthlyPaymentsToCsv(
     `Total Paid (${currencySymbol})`,
     `Balance (${currencySymbol})`,
     "Payment Status",
+    "Days Attended",
     "Last Payment Date",
     "Total Transactions"
   ];
@@ -467,7 +517,8 @@ export function exportMonthlyPaymentsToCsv(
       escape(r.monthlyFee),
       escape(r.totalPaid),
       escape(r.balance),
-      escape(r.status),
+      escape(r.status === "NO_CLASS" ? "NO CLASS (NO FEE)" : r.status),
+      escape(r.attendedDays ?? "-"),
       escape(r.lastPaymentDate ? formatDisplayDate(r.lastPaymentDate) : "-"),
       escape(r.transactions ? r.transactions.length : 0)
     ];

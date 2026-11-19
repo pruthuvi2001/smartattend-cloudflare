@@ -7,7 +7,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { recordAttendanceByQr, ScanAttendanceResult } from "@/lib/attendance/attendanceService";
 import {
-  getStudentFeeRecord,
+  getStudentFeeStatus,
   getCurrentMonthKey,
   recordStudentPayment,
 } from "@/lib/payments/paymentService";
@@ -142,7 +142,7 @@ export default function AttendanceScanPage() {
   const handleViewFeeStatus = async (studentId: string) => {
     try {
       const currentMonth = getCurrentMonthKey(new Date(), settings.timezone);
-      const feeRec = await getStudentFeeRecord(
+      const feeRec = await getStudentFeeStatus(
         studentId,
         currentMonth,
         settings.defaultMonthlyFee || 5000

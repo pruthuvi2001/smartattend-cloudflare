@@ -29,9 +29,9 @@ describe("Monthly Payments Service & Calculations", () => {
     // 0 paid -> UNPAID
     expect(calculatePaymentStatus(fee, 0)).toBe("UNPAID");
 
-    // Partial deposit -> PARTIALLY_PAID
-    expect(calculatePaymentStatus(fee, 2000)).toBe("PARTIALLY_PAID");
-    expect(calculatePaymentStatus(fee, 4999)).toBe("PARTIALLY_PAID");
+    // Part payments were removed: less than the full fee is still UNPAID
+    expect(calculatePaymentStatus(fee, 2000)).toBe("UNPAID");
+    expect(calculatePaymentStatus(fee, 4999)).toBe("UNPAID");
 
     // Full payment or overpayment -> PAID
     expect(calculatePaymentStatus(fee, 5000)).toBe("PAID");

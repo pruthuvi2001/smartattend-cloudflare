@@ -1,7 +1,7 @@
 ﻿import React from "react";
 import { MonthlyPaymentsSummary } from "@/types/payment";
 import { StatCard } from "@/components/ui/StatCard";
-import { Users, CheckCircle2, AlertCircle, XCircle, DollarSign, Wallet, TrendingUp } from "lucide-react";
+import { Users, CheckCircle2, CalendarX, XCircle, DollarSign, Wallet, TrendingUp } from "lucide-react";
 
 export interface PaymentSummaryCardsProps {
   summary: MonthlyPaymentsSummary;
@@ -34,18 +34,18 @@ export const PaymentSummaryCards: React.FC<PaymentSummaryCardsProps> = ({
           variant="emerald"
         />
         <StatCard
-          title="Partially Paid"
-          value={summary.partiallyPaidCount}
-          subtitle="Partial deposit received"
-          icon={<AlertCircle className="w-5 h-5" />}
-          variant="amber"
-        />
-        <StatCard
           title="Unpaid Students"
           value={summary.unpaidCount}
-          subtitle="No payment recorded"
+          subtitle="Came to class, not paid"
           icon={<XCircle className="w-5 h-5" />}
           variant="rose"
+        />
+        <StatCard
+          title="No Class"
+          value={summary.noClassCount}
+          subtitle="Didn't attend, no fee"
+          icon={<CalendarX className="w-5 h-5" />}
+          variant="slate"
         />
       </div>
 
@@ -54,7 +54,7 @@ export const PaymentSummaryCards: React.FC<PaymentSummaryCardsProps> = ({
           <div className="space-y-1">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Expected</p>
             <h4 className="text-xl sm:text-2xl font-black text-slate-900">{formatMoney(summary.totalExpected)}</h4>
-            <p className="text-xs text-slate-500">Gross monthly fee budget</p>
+            <p className="text-xs text-slate-500">Fees due from students who came</p>
           </div>
           <div className="p-3 bg-slate-100 text-slate-700 rounded-xl">
             <Wallet className="w-5 h-5" />

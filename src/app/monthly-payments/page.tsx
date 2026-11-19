@@ -40,9 +40,9 @@ export default function MonthlyPaymentsPage() {
     monthName: "",
     totalStudents: 0,
     paidCount: 0,
-    partiallyPaidCount: 0,
     unpaidCount: 0,
     waivedCount: 0,
+    noClassCount: 0,
     totalExpected: 0,
     totalCollected: 0,
     outstandingBalance: 0,
@@ -198,7 +198,8 @@ export default function MonthlyPaymentsPage() {
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Manage and track student monthly fee payments.
+                Manage and track student monthly fee payments. A month&apos;s fee is due only if the
+                student came to class (Present or Late) at least once that month.
               </p>
             </div>
 
@@ -269,6 +270,7 @@ export default function MonthlyPaymentsPage() {
 
           {/* Record Payment Modal */}
           <PaymentModal
+            records={records}
             isOpen={paymentModalOpen}
             onClose={() => {
               setPaymentModalOpen(false);

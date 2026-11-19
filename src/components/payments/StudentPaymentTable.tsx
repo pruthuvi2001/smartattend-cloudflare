@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { MonthlyFeeRecord } from "@/types/payment";
 import { ClassEntity } from "@/types/class";
 import { getClasses } from "@/lib/classes/classService";
-import { Badge } from "@/components/ui/Badge";
+import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -70,18 +70,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return <Badge variant="success" size="sm" dot>PAID</Badge>;
-      case "PARTIALLY_PAID":
-        return <Badge variant="warning" size="sm" dot>PARTIAL</Badge>;
-      case "WAIVED":
-        return <Badge variant="purple" size="sm" dot>WAIVED</Badge>;
-      default:
-        return <Badge variant="danger" size="sm" dot>UNPAID</Badge>;
-    }
-  };
+  const getStatusBadge = (status: string) => <PaymentStatusBadge status={status} />;
 
   return (
     <div className="space-y-4">
@@ -120,8 +109,8 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
             options={[
               { label: "All Statuses", value: "ALL" },
               { label: "Paid Only", value: "PAID" },
-              { label: "Partially Paid", value: "PARTIALLY_PAID" },
               { label: "Unpaid Only", value: "UNPAID" },
+              { label: "No Class (No Fee)", value: "NO_CLASS" },
               { label: "Waived Only", value: "WAIVED" },
             ]}
           />
@@ -182,7 +171,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
                       {r.classSnapshot} {r.sectionSnapshot}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-700">
-                      {currencySymbol} {r.monthlyFee.toLocaleString()}
+                      {r.status === "NO_CLASS" ? "No fee" : `${currencySymbol} ${r.monthlyFee.toLocaleString()}`}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-emerald-700">
                       {currencySymbol} {r.totalPaid.toLocaleString()}
@@ -206,7 +195,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
                         >
                           View
                         </Button>
-                        {r.status !== "PAID" && r.status !== "WAIVED" && (
+                        {r.status === "UNPAID" && (
                           <Button
                             variant="primary"
                             size="sm"
@@ -250,7 +239,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
               <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-lg text-center text-xs">
                 <div>
                   <span className="text-[10px] text-slate-500 uppercase block">Monthly Fee</span>
-                  <strong className="text-slate-800">{currencySymbol} {r.monthlyFee.toLocaleString()}</strong>
+                  <strong className="text-slate-800">{r.status === "NO_CLASS" ? "No fee" : `${currencySymbol} ${r.monthlyFee.toLocaleString()}`}</strong>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 uppercase block">Paid</span>
@@ -273,7 +262,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
                   >
                     View
                   </Button>
-                  {r.status !== "PAID" && r.status !== "WAIVED" && (
+                  {r.status === "UNPAID" && (
                     <Button
                       variant="primary"
                       size="sm"

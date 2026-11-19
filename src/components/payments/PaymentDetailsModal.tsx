@@ -4,7 +4,7 @@ import React from "react";
 import { MonthlyFeeRecord } from "@/types/payment";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
+import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { formatDisplayDate } from "@/lib/utils/dateUtils";
 import { PlusCircle, FileText } from "lucide-react";
 
@@ -14,7 +14,8 @@ export interface PaymentDetailsModalProps {
   record: MonthlyFeeRecord | null;
   currencySymbol?: string;
   onRecordPayment: (record: MonthlyFeeRecord) => void;
-  onWaiveFee: (record: MonthlyFeeRecord) => void;
+  /** Leave out to hide the "Waive Fee" button. */
+  onWaiveFee?: (record: MonthlyFeeRecord) => void;
 }
 
 export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
@@ -27,18 +28,9 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
 }) => {
   if (!record) return null;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return <Badge variant="success" size="md" dot>PAID</Badge>;
-      case "PARTIALLY_PAID":
-        return <Badge variant="warning" size="md" dot>PARTIALLY PAID</Badge>;
-      case "WAIVED":
-        return <Badge variant="purple" size="md" dot>WAIVED</Badge>;
-      default:
-        return <Badge variant="danger" size="md" dot>UNPAID</Badge>;
-    }
-  };
+  const isNoClass = record.status === "NO_CLASS";
+  const canRecordPayment = record.status === "UNPAID" || isNoClass;
+  const receivedEarlier = record.status === "UNPAID" && (record.totalPaid || 0) > 0;
 
   return (
     <Modal
@@ -61,7 +53,7 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {getStatusBadge(record.status)}
+            <PaymentStatusBadge status={record.status} size="md" />
           </div>
         </div>
 
@@ -69,7 +61,7 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
           <div>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Monthly Fee</p>
             <p className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
-              {currencySymbol} {record.monthlyFee.toLocaleString()}
+              {isNoClass ? "No fee" : `${currencySymbol} ${record.monthlyFee.toLocaleString()}`}
             </p>
           </div>
           <div>
@@ -86,8 +78,30 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
           </div>
         </div>
 
+        {record.attendedDays !== undefined && (
+          <p className="text-xs text-slate-500 -mt-2">
+            Days marked Present or Late in {record.monthName}:{" "}
+            <strong className="text-slate-800">{record.attendedDays}</strong>
+          </p>
+        )}
+
+        {isNoClass && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
+            <strong>No class, no fee:</strong> this student was not marked Present or Late on any day in{" "}
+            {record.monthName}, so the fee is not due. A payment can still be recorded in advance.
+          </div>
+        )}
+
+        {receivedEarlier && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+            {currencySymbol} {record.totalPaid.toLocaleString()} was received earlier as a part payment. Part payments
+            are no longer used, so this month stays unpaid until the remaining {currencySymbol}{" "}
+            {record.balance.toLocaleString()} is paid.
+          </div>
+        )}
+
         {record.waiveReason && (
-          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900">
+          <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900">
             <strong>Fee Waived:</strong> {record.waiveReason}
           </div>
         )}
@@ -148,7 +162,7 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {record.status !== "WAIVED" && record.status !== "PAID" && (
+            {record.status === "UNPAID" && onWaiveFee && (
               <Button
                 variant="outline"
                 size="sm"
@@ -164,7 +178,7 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
             <Button variant="outline" size="sm" onClick={onClose}>
               Close
             </Button>
-            {record.status !== "PAID" && record.status !== "WAIVED" && (
+            {canRecordPayment && (
               <Button
                 variant="primary"
                 size="sm"

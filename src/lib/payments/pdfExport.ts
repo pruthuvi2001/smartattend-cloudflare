@@ -29,17 +29,21 @@ export function exportMonthlyPaymentsToPdf(opts: ExportMonthlyPaymentsPdfOptions
         );
 
   // Compute summary stats
+  // A fee is only due from students who came to class (status PAID or UNPAID).
   const totalStudents = filteredRecords.length;
-  const totalExpected = filteredRecords.reduce((sum, r) => sum + r.monthlyFee, 0);
-  const totalCollected = filteredRecords.reduce((sum, r) => sum + r.totalPaid, 0);
-  const totalBalance = filteredRecords.reduce((sum, r) => sum + r.balance, 0);
+  const totalExpected = filteredRecords
+    .filter((r) => r.status === "PAID" || r.status === "UNPAID")
+    .reduce((sum, r) => sum + r.monthlyFee, 0);
+  const totalCollected = filteredRecords.reduce((sum, r) => sum + (r.totalPaid || 0), 0);
+  const totalBalance = filteredRecords
+    .filter((r) => r.status === "UNPAID")
+    .reduce((sum, r) => sum + r.balance, 0);
   const paidCount = filteredRecords.filter((r) => r.status === "PAID").length;
-  const partialCount = filteredRecords.filter((r) => r.status === "PARTIALLY_PAID").length;
   const unpaidCount = filteredRecords.filter((r) => r.status === "UNPAID").length;
-  const waivedCount = filteredRecords.filter((r) => r.status === "WAIVED").length;
+  const noClassCount = filteredRecords.filter((r) => r.status === "NO_CLASS").length;
 
   const collectionRate =
-    totalExpected > 0 ? ((totalCollected / totalExpected) * 100).toFixed(1) : "0.0";
+    totalExpected > 0 ? Math.min(100, ((totalExpected - totalBalance) / totalExpected) * 100).toFixed(1) : "0.0";
 
   // Initialize PDF in landscape orientation for comfortable table columns
   const doc = new jsPDF({
@@ -68,7 +72,11 @@ export function exportMonthlyPaymentsToPdf(opts: ExportMonthlyPaymentsPdfOptions
   });
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Filter Scope: ${scopeLabel}   |   Generated: ${nowFormatted}`, 14, 29);
+  doc.text(
+    `Filter Scope: ${scopeLabel}   |   Generated: ${nowFormatted}   |   No class (no fee): ${noClassCount} = not marked Present or Late this month`,
+    14,
+    29
+  );
 
   // --- Summary Metrics Box ---
   const summaryBoxY = 33;
@@ -128,7 +136,7 @@ export function exportMonthlyPaymentsToPdf(opts: ExportMonthlyPaymentsPdfOptions
     r.studentId,
     r.studentNameSnapshot,
     r.classSnapshot,
-    `${currencySymbol} ${r.monthlyFee.toLocaleString()}`,
+    r.status === "NO_CLASS" ? "No fee" : `${currencySymbol} ${r.monthlyFee.toLocaleString()}`,
     `${currencySymbol} ${r.totalPaid.toLocaleString()}`,
     `${currencySymbol} ${r.balance.toLocaleString()}`,
     r.status.replace("_", " "),
@@ -184,11 +192,11 @@ export function exportMonthlyPaymentsToPdf(opts: ExportMonthlyPaymentsPdfOptions
         const text = String(data.cell.raw);
         if (text === "PAID") {
           data.cell.styles.textColor = [5, 150, 105]; // emerald-600
-        } else if (text === "PARTIALLY PAID") {
-          data.cell.styles.textColor = [217, 119, 6]; // amber-600
         } else if (text === "UNPAID") {
           data.cell.styles.textColor = [220, 38, 38]; // red-600
         } else if (text === "WAIVED") {
+          data.cell.styles.textColor = [2, 132, 199]; // sky-600
+        } else if (text === "NO CLASS") {
           data.cell.styles.textColor = [100, 116, 139]; // slate-500
         }
       }

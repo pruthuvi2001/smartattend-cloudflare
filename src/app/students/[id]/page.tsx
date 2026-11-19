@@ -12,6 +12,8 @@ import {
   getCurrentMonthKey,
   recordStudentPayment,
 } from "@/lib/payments/paymentService";
+import { applyFeeRule, countAttendedDays, getAttendedDays } from "@/lib/payments/feeRules";
+import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { getSystemSettings } from "@/lib/settings/settingsService";
 import { Student } from "@/types/student";
 import { AttendanceRecord } from "@/types/attendance";
@@ -74,7 +76,9 @@ export default function StudentDetailPage() {
       setSettings(appSettings);
       setStudent(stu);
       setHistory(att);
-      setFeeHistory(fees);
+      // Same fee rule as everywhere: no Present/Late day in a month means no fee that month.
+      const attended = countAttendedDays(att);
+      setFeeHistory(fees.map((f) => applyFeeRule(f, getAttendedDays(attended, studentId, f.monthKey))));
       setAllStudents(stuList);
     } catch (err) {
       console.error("Student detail load error:", err);
@@ -151,18 +155,7 @@ export default function StudentDetailPage() {
   const currentMonthKey = getCurrentMonthKey(new Date(), settings.timezone);
   const currentMonthFee = feeHistory.find((f) => f.monthKey === currentMonthKey);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return <Badge variant="success" size="sm" dot>PAID</Badge>;
-      case "PARTIALLY_PAID":
-        return <Badge variant="warning" size="sm" dot>PARTIAL</Badge>;
-      case "WAIVED":
-        return <Badge variant="purple" size="sm" dot>WAIVED</Badge>;
-      default:
-        return <Badge variant="danger" size="sm" dot>UNPAID</Badge>;
-    }
-  };
+  const getStatusBadge = (status: string) => <PaymentStatusBadge status={status} />;
 
   return (
     <ProtectedRoute>

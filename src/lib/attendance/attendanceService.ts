@@ -260,18 +260,20 @@ export async function getStudentAttendanceHistory(studentId: string): Promise<At
 }
 
 /**
- * Fetch attendance records within a date range (YYYY-MM-DD)
+ * Fetch attendance records within a date range (YYYY-MM-DD), read-only.
+ * Asks Firestore for just that range (single-field range, no extra index needed).
+ * When Firestore answers, its result is trusted even if empty; the local cache is
+ * only used when Firestore can't be reached.
  */
 export async function getAttendanceForDateRange(startDate: string, endDate: string): Promise<AttendanceRecord[]> {
   try {
     const colRef = collection(db, COLLECTION_NAME);
-    const snap = await getDocs(colRef);
-    if (!snap.empty) {
-      return snap.docs
-        .map((d) => d.data() as AttendanceRecord)
-        .filter((r) => r.date >= startDate && r.date <= endDate);
-    }
-  } catch (err) {}
+    const q = query(colRef, where("date", ">=", startDate), where("date", "<=", endDate));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as AttendanceRecord);
+  } catch (err) {
+    console.debug("Firestore getAttendanceForDateRange fallback:", err);
+  }
 
   const local = getLocalAttendance();
   return local.filter((r) => r.date >= startDate && r.date <= endDate);

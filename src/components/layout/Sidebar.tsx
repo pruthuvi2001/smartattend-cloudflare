@@ -14,7 +14,8 @@ import {
   Sparkles,
   School,
   GraduationCap,
-  Receipt
+  Receipt,
+  Table2
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
     { label: "Attendance Records", href: "/attendance", icon: FileSpreadsheet },
     { label: "Students", href: "/students", icon: GraduationCap },
     { label: "Monthly Payments", href: "/monthly-payments", icon: Receipt },
+    { label: "Payment Records", href: "/payment-records", icon: Table2 },
     { label: "Reports", href: "/reports", icon: Users },
   ];
 
