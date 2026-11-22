@@ -1,84 +1,209 @@
 rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SmartAttend — Firestore security rules with Role & Permission Management
+//
+//  * Every request needs a signed-in user with an ACTIVE profile in /users.
+//  * ADMIN can do everything. Other roles get the permissions the Admin chose
+//    on the "Roles & Permissions" page (stored in /settings/rolePermissions).
+//    Until the Admin saves that page once, the DEFAULT lists below apply —
+//    they match what each role could do before this feature existed.
+//  * Nobody can change their own role or status; only an ADMIN can create,
+//    change or remove ADMIN accounts.
+//
+//  Permission keys must match src/lib/auth/permissions.ts (a unit test checks).
+//  These rules only decide who may read/write — they never change any data.
+// ─────────────────────────────────────────────────────────────────────────────
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
-    function isAuthenticated() {
+
+    // ── Who is asking ──────────────────────────────────────────────────────
+    function signedIn() {
       return request.auth != null;
     }
-    
-    function existsUser() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
     }
-    
-    function getUserData() {
-      return existsUser() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {};
+    function hasProfile() {
+      return signedIn() && exists(userPath());
     }
-    
-    // Resilient Role Check: If users collection or user doc was wiped, allow authenticated user
+    function profile() {
+      return get(userPath()).data;
+    }
+    // Older profiles without a "status" field count as active (as before).
+    function isActive() {
+      return hasProfile() && profile().get('status', 'ACTIVE') == 'ACTIVE';
+    }
+    function role() {
+      return profile().get('role', '');
+    }
     function isAdmin() {
-      return isAuthenticated() && (
-        !existsUser() || 
-        getUserData().role == 'ADMIN'
-      );
-    }
-    
-    function isStaff() {
-      return isAuthenticated() && (
-        !existsUser() || 
-        getUserData().role == 'STAFF' || 
-        getUserData().role == 'ADMIN' ||
-        getUserData().role == 'TEACHER' ||
-        getUserData().role == 'PRINCIPAL'
-      );
+      return isActive() && role() == 'ADMIN';
     }
 
-    // 1. Users collection
+    // ── Permissions ────────────────────────────────────────────────────────
+    function allPermissions() {
+      return [
+        'dashboard_view',
+        'attendance_scan', 'attendance_view', 'attendance_mark',
+        'students_view', 'students_create', 'students_edit', 'students_change_id', 'students_delete', 'students_export',
+        'payments_view', 'payments_record', 'payments_waive', 'payments_export',
+        'reports_view', 'reports_export',
+        'classes_manage', 'settings_manage', 'users_manage'
+      ];
+    }
+    // DEFAULT (before the Admin saves Roles & Permissions for the first time)
+    function staffDefault() {
+      return [
+        'dashboard_view',
+        'attendance_scan', 'attendance_view', 'attendance_mark',
+        'students_view', 'students_create', 'students_edit', 'students_export',
+        'payments_view', 'payments_record', 'payments_waive', 'payments_export',
+        'reports_view', 'reports_export'
+      ];
+    }
+    function viewerDefault() {
+      return [
+        'dashboard_view', 'attendance_view', 'students_view', 'students_export',
+        'payments_view', 'payments_export', 'reports_view', 'reports_export'
+      ];
+    }
+    function defaultGranted(r) {
+      return r in ['STAFF', 'TEACHER', 'PRINCIPAL'] ? staffDefault() : (r == 'VIEWER' ? viewerDefault() : []);
+    }
+    function permsPath() {
+      return /databases/$(database)/documents/settings/rolePermissions;
+    }
+    function granted() {
+      return exists(permsPath()) ? get(permsPath()).data.roles.get(role(), []) : defaultGranted(role());
+    }
+    function canAny(perms) {
+      return isActive() && (role() == 'ADMIN' || granted().hasAny(perms));
+    }
+    function can(perm) {
+      return canAny([perm]);
+    }
+
+    // Features that need to read each kind of record
+    function studentReaders() {
+      return [
+        'dashboard_view', 'attendance_scan', 'attendance_view', 'attendance_mark',
+        'students_view', 'students_create', 'students_edit', 'students_change_id', 'students_delete', 'students_export',
+        'payments_view', 'payments_record', 'payments_waive', 'payments_export',
+        'reports_view', 'reports_export'
+      ];
+    }
+    function attendanceReaders() {
+      return [
+        'dashboard_view', 'attendance_scan', 'attendance_view', 'attendance_mark',
+        'students_view', 'students_change_id', 'students_delete',
+        'payments_view', 'payments_record', 'payments_waive', 'payments_export',
+        'reports_view', 'reports_export'
+      ];
+    }
+    function feeReaders() {
+      return [
+        'payments_view', 'payments_record', 'payments_waive', 'payments_export',
+        'reports_view', 'reports_export',
+        'students_view', 'students_change_id', 'students_delete'
+      ];
+    }
+
+    // ── Helpers for user accounts ──────────────────────────────────────────
+    function validRole(r) {
+      return r in ['ADMIN', 'PRINCIPAL', 'TEACHER', 'STAFF', 'VIEWER'];
+    }
+    function unchanged(keys) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
+    function validRolePermissions() {
+      let d = request.resource.data;
+      let roles = d.roles;
+      return d.keys().hasOnly(['roles', 'updatedAt', 'updatedBy', 'version'])
+        && roles is map
+        && roles.keys().hasOnly(['PRINCIPAL', 'TEACHER', 'STAFF', 'VIEWER'])
+        && roles.get('PRINCIPAL', []) is list && roles.get('PRINCIPAL', []).hasOnly(allPermissions())
+        && roles.get('TEACHER', []) is list && roles.get('TEACHER', []).hasOnly(allPermissions())
+        && roles.get('STAFF', []) is list && roles.get('STAFF', []).hasOnly(allPermissions())
+        && roles.get('VIEWER', []) is list && roles.get('VIEWER', []).hasOnly(allPermissions());
+    }
+
+    // 1. User accounts
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      // Allow user to create or update their own user profile document, or admins
-      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin();
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin() || can('users_manage'));
+
+      allow create: if signedIn()
+        && request.resource.data.userId == userId
+        && validRole(request.resource.data.role)
+        && (
+          // Admin adds someone else
+          (isAdmin() && userId != request.auth.uid)
+          // User manager adds a non-admin account
+          || (can('users_manage') && userId != request.auth.uid && request.resource.data.role != 'ADMIN')
+          // A signed-in person without a profile may only register as "waiting for approval"
+          || (request.auth.uid == userId && !exists(userPath())
+              && request.resource.data.status == 'INACTIVE' && request.resource.data.role != 'ADMIN')
+        );
+
+      allow update: if signedIn()
+        && validRole(request.resource.data.role)
+        && request.resource.data.userId == resource.data.userId
+        && (
+          // Admin: anyone, but never their own role / status
+          (isAdmin() && (userId != request.auth.uid || unchanged(['role', 'status'])))
+          // User manager: non-admin accounts only, never themselves, never to ADMIN
+          || (can('users_manage') && userId != request.auth.uid
+              && resource.data.role != 'ADMIN' && request.resource.data.role != 'ADMIN')
+          // Anyone: their own name etc., but not role / status
+          || (request.auth.uid == userId && unchanged(['role', 'status', 'userId']))
+        );
+
+      allow delete: if (isAdmin() && userId != request.auth.uid)
+        || (can('users_manage') && userId != request.auth.uid && resource.data.role != 'ADMIN');
     }
 
-    // 2. Students collection
+    // 2. Students
     match /students/{studentId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isStaff();
-      allow delete: if isAdmin();
+      allow read: if canAny(studentReaders());
+      allow create: if canAny(['students_create', 'students_change_id']);
+      allow update: if can('students_edit');
+      allow delete: if canAny(['students_delete', 'students_change_id']);
     }
 
-    // 3. Attendance collection
+    // 3. Attendance
     match /attendance/{attendanceId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isStaff();
-      allow delete: if isAdmin();
+      allow read: if canAny(attendanceReaders());
+      allow create, update: if canAny(['attendance_scan', 'attendance_mark', 'students_change_id']);
+      allow delete: if canAny(['students_delete', 'students_change_id']);
     }
 
-    // 4. Settings collection
+    // 4. Settings (system settings + role permissions)
     match /settings/{settingId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read: if signedIn();
+      allow create, update: if settingId == 'rolePermissions'
+        ? (isAdmin() && validRolePermissions())
+        : (settingId == 'system' ? can('settings_manage') : isAdmin());
+      allow delete: if isAdmin() && settingId != 'rolePermissions';
     }
 
-    // 5. Monthly Fee Records & Payments
+    // 5. Monthly fee records & payments
     match /feeRecords/{feeRecordId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isStaff();
-      allow delete: if isAdmin();
+      allow read: if canAny(feeReaders());
+      allow create, update: if canAny(['payments_record', 'payments_waive', 'students_change_id']);
+      allow delete: if canAny(['students_delete', 'students_change_id']);
 
       match /payments/{paymentId} {
-        allow read: if isAuthenticated();
-        allow create, update: if isAuthenticated() && isStaff();
-        allow delete: if isAdmin();
+        allow read: if canAny(feeReaders());
+        allow create, update: if canAny(['payments_record', 'payments_waive', 'students_change_id']);
+        allow delete: if canAny(['students_delete', 'students_change_id']);
       }
     }
 
-    // 6. Classes & Timetables collection
+    // 6. Classes & timetables
     match /classes/{classId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isStaff();
-      allow delete: if isAdmin();
+      allow read: if isActive();
+      allow create, update: if canAny(['classes_manage', 'students_edit']);
+      allow delete: if can('classes_manage');
     }
   }
 }

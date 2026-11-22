@@ -31,6 +31,7 @@ import { useToast } from "@/components/ui/Toast";
 import { exportMonthlyPaymentsToPdf } from "@/lib/payments/pdfExport";
 
 export default function ReportsPage() {
+  const { can } = useAuth();
   const [reportTab, setReportTab] = useState<"attendance" | "payments">("attendance");
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [selectedDate, setSelectedDate] = useState("");
@@ -163,7 +164,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="reports_view">
       <AppLayout>
         <div className="space-y-6">
           {/* Header Bar */}
@@ -177,6 +178,7 @@ export default function ReportsPage() {
               </p>
             </div>
 
+            {can("reports_export") && (
             <div className="flex items-center gap-2 no-print">
               <Button
                 variant="outline"
@@ -203,6 +205,7 @@ export default function ReportsPage() {
                 Export PDF
               </Button>
             </div>
+            )}
           </div>
 
           {/* Tab Selector Bar */}

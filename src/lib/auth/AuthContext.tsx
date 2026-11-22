@@ -1,18 +1,32 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db, isDemoMode } from "@/lib/firebase/config";
-import { getUserProfile, createOrUpdateUserProfile, getAllUsers, logoutUser, saveLocalUser } from "@/lib/firebase/auth";
+import { getLocalUsers, logoutUser, saveLocalUser } from "@/lib/firebase/auth";
 import { UserProfile, UserRole } from "@/types/user";
+import { Permission, RolePermissionMap, permissionsFor } from "@/lib/auth/permissions";
+import { subscribeRolePermissions } from "@/lib/auth/rolePermissionsService";
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   role: UserRole;
+  /** ACTIVE admin. */
   isAdmin: boolean;
+  /** Kept for older code: any active non-viewer role. Prefer can(). */
   isStaff: boolean;
+  /** False when an Admin has deactivated this account (or it is waiting for approval). */
+  isActive: boolean;
+  /** Permissions of the signed-in user, kept up to date live. */
+  permissions: Set<Permission>;
+  can: (permission: Permission) => boolean;
+  canAny: (permissions: Permission[]) => boolean;
+  /** The role → permissions map saved by the Admin (null = built-in defaults). */
+  rolePermissions: RolePermissionMap | null;
+  /** Set when the account profile could not be loaded at all. */
+  profileError: string | null;
   loading: boolean;
   demoMode: boolean;
   loginAsDemo: (role?: UserRole) => void;
@@ -25,7 +39,13 @@ const AuthContext = createContext<AuthContextType>({
   userProfile: null,
   role: "STAFF",
   isAdmin: false,
-  isStaff: true,
+  isStaff: false,
+  isActive: false,
+  permissions: new Set(),
+  can: () => false,
+  canAny: () => false,
+  rolePermissions: null,
+  profileError: null,
   loading: true,
   demoMode: false,
   loginAsDemo: () => {},
@@ -36,95 +56,74 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [demoUserRole, setDemoUserRole] = useState<UserRole | null>(null);
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionMap | null>(null);
+  // Pages wait until the saved permissions have arrived, so nobody briefly sees more than allowed.
+  const [permsLoaded, setPermsLoaded] = useState(false);
 
-  const fetchProfile = async (firebaseUser: User) => {
+  /**
+   * Load the signed-in user's profile.
+   *  - Profile found in Firestore → use it.
+   *  - Firestore unreachable (offline) → use the copy cached in this browser.
+   *  - Firestore says there is NO profile → create a pending (INACTIVE) profile.
+   *    An Admin must activate it in User Management. (Previously a missing profile
+   *    could end up with full access — that was a security hole.)
+   */
+  const fetchProfile = useCallback(async (firebaseUser: User) => {
+    setProfileError(null);
+    const ref = doc(db, "users", firebaseUser.uid);
+    let snapExists: boolean | null = null; // null = could not reach Firestore
     try {
-      // 1. Check if user document physically exists in Firestore
-      const userDocRef = doc(db, "users", firebaseUser.uid);
-      let profile: UserProfile | null = null;
-      let docExistsInFirestore = false;
-
-      try {
-        const snap = await getDoc(userDocRef);
-        if (snap.exists()) {
-          profile = snap.data() as UserProfile;
-          docExistsInFirestore = true;
-          saveLocalUser(profile);
-        }
-      } catch (docErr) {
-        console.warn("Could not read user profile directly from Firestore:", docErr);
-      }
-
-      // 2. Fall back to cached local profile if Firestore didn't have it
-      if (!profile) {
-        profile = await getUserProfile(firebaseUser.uid);
-      }
-
-      // 3. If neither exists, determine role and generate new profile
-      if (!profile) {
-        let firestoreUserCount = 0;
-        try {
-          const snap = await getDocs(collection(db, "users"));
-          firestoreUserCount = snap.size;
-        } catch {}
-
-        const initialRole: UserRole = firestoreUserCount === 0 ? "ADMIN" : "STAFF";
-        profile = {
-          userId: firebaseUser.uid,
-          email: firebaseUser.email || "user@smartattend.edu",
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
-          role: initialRole,
-          status: "ACTIVE",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      }
-
-      // 4. CRITICAL SELF-HEALING: If doc was missing in Firestore (e.g. wiped during DB cleanup),
-      // actively recreate/write it to Firestore so security rules and permission checks pass!
-      if (!docExistsInFirestore) {
-        try {
-          // Pure setDoc (create) WITHOUT { merge: true } so Firestore security rules evaluate "allow create"
-          // which allows any authenticated user where request.auth.uid == userId
-          await setDoc(userDocRef, profile);
-          console.log("Restored user profile to Firestore:", profile.userId);
-        } catch (syncErr) {
-          console.warn("Could not write restored profile to Firestore:", syncErr);
-        }
+      const snap = await getDoc(ref);
+      snapExists = snap.exists();
+      if (snap.exists()) {
+        const profile = snap.data() as UserProfile;
         saveLocalUser(profile);
+        setUserProfile(profile);
+        return;
       }
-
-      setUserProfile(profile);
     } catch (err) {
-      console.error("Error in fetchProfile:", err);
-      // Fallback profile if Firestore fails or offline
-      setUserProfile({
-        userId: firebaseUser.uid,
-        email: firebaseUser.email || "user@smartattend.edu",
-        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "Staff Member",
-        role: "ADMIN",
-        status: "ACTIVE",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      console.warn("Could not read user profile from Firestore:", err);
     }
-  };
 
+    if (snapExists === null) {
+      const cached = getLocalUsers().find((u) => u.userId === firebaseUser.uid);
+      if (cached) {
+        setUserProfile(cached);
+      } else {
+        setUserProfile(null);
+        setProfileError("Could not load your account. Check the internet connection and refresh the page.");
+      }
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const pending: UserProfile = {
+      userId: firebaseUser.uid,
+      email: firebaseUser.email || "",
+      displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "New user",
+      role: "STAFF",
+      status: "INACTIVE",
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      await setDoc(ref, pending);
+    } catch (err) {
+      console.warn("Could not create pending profile:", err);
+    }
+    setUserProfile(pending);
+  }, []);
+
+  // Firebase sign-in state
   useEffect(() => {
     let mounted = true;
+    const timeoutId = setTimeout(() => mounted && setLoading(false), 4000);
 
-    // Safety timeout fallback: Ensure loading is never stuck indefinitely
-    const timeoutId = setTimeout(() => {
-      if (mounted) {
-        setLoading(false);
-      }
-    }, 2000);
-
-    // Check if demo user saved in sessionStorage for instant dev persistence
-    if (typeof window !== 'undefined') {
-      const savedDemo = sessionStorage.getItem('smartattend_demo_user');
+    if (typeof window !== "undefined") {
+      const savedDemo = sessionStorage.getItem("smartattend_demo_user");
       if (savedDemo) {
         try {
           const parsed = JSON.parse(savedDemo);
@@ -134,13 +133,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           clearTimeout(timeoutId);
           return;
         } catch {
-          // ignore
+          /* ignore */
         }
       }
     }
 
     let unsubscribe = () => {};
-
     try {
       unsubscribe = onAuthStateChanged(
         auth,
@@ -148,13 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!mounted) return;
           try {
             setUser(currentUser);
-            if (currentUser) {
-              await fetchProfile(currentUser);
-            } else {
-              if (!demoUserRole) {
-                setUserProfile(null);
-              }
-            }
+            if (currentUser) await fetchProfile(currentUser);
+            else if (!demoUserRole) setUserProfile(null);
           } catch (err) {
             console.error("Auth callback error:", err);
           } finally {
@@ -185,13 +178,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [demoUserRole]);
+  }, [demoUserRole, fetchProfile]);
+
+  // Live updates of the user's own role / status (e.g. Admin changes their role).
+  const uid = user?.uid;
+  useEffect(() => {
+    if (!uid || isDemoMode) return;
+    return onSnapshot(
+      doc(db, "users", uid),
+      (snap) => {
+        if (snap.exists()) {
+          const profile = snap.data() as UserProfile;
+          saveLocalUser(profile);
+          setUserProfile(profile);
+        }
+      },
+      () => {
+        /* offline: keep the last known profile */
+      }
+    );
+  }, [uid]);
+
+  // Live updates of the role permissions saved by the Admin.
+  const signedIn = !!uid || !!demoUserRole;
+  useEffect(() => {
+    if (!signedIn) {
+      setPermsLoaded(false);
+      return;
+    }
+    // Safety net: never wait forever (offline etc.) — fall back to the last known / default map.
+    const t = setTimeout(() => setPermsLoaded(true), 6000);
+    const unsub = subscribeRolePermissions((map) => {
+      setRolePermissions(map);
+      setPermsLoaded(true);
+    });
+    return () => {
+      clearTimeout(t);
+      unsub();
+    };
+  }, [signedIn]);
 
   const loginAsDemo = (role: UserRole = "ADMIN") => {
     const demoProfile: UserProfile = {
       userId: `demo-${role.toLowerCase()}-001`,
       email: `${role.toLowerCase()}@smartattend.edu`,
-      displayName: role === "ADMIN" ? "Admin Administrator" : "Staff Member (Demo)",
+      displayName: role === "ADMIN" ? "Admin Administrator" : `${role.charAt(0)}${role.slice(1).toLowerCase()} (Demo)`,
       role,
       status: "ACTIVE",
       createdAt: new Date().toISOString(),
@@ -199,8 +230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setUserProfile(demoProfile);
     setDemoUserRole(role);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('smartattend_demo_user', JSON.stringify(demoProfile));
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("smartattend_demo_user", JSON.stringify(demoProfile));
     }
     setLoading(false);
   };
@@ -208,25 +239,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setDemoUserRole(null);
     setUserProfile(null);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('smartattend_demo_user');
+    setRolePermissions(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("smartattend_demo_user");
     }
     try {
       await logoutUser();
     } catch {
-      // ignore
+      /* ignore */
     }
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user);
-    }
+    if (user) await fetchProfile(user);
   };
 
   const currentRole: UserRole = userProfile?.role || "STAFF";
-  const isAdmin = currentRole === "ADMIN";
-  const isStaff = currentRole === "STAFF" || currentRole === "ADMIN";
+  // Older profiles may not have a status field: treat them as active, like before.
+  const isActive = !!userProfile && (userProfile.status ?? "ACTIVE") === "ACTIVE";
+  const permissions = useMemo(
+    () => (isActive ? permissionsFor(currentRole, rolePermissions) : new Set<Permission>()),
+    [isActive, currentRole, rolePermissions]
+  );
+  const can = useCallback((p: Permission) => permissions.has(p), [permissions]);
+  const canAny = useCallback((ps: Permission[]) => ps.some((p) => permissions.has(p)), [permissions]);
+  const isAdmin = isActive && currentRole === "ADMIN";
+  const isStaff = isActive && currentRole !== "VIEWER";
 
   return (
     <AuthContext.Provider
@@ -236,7 +274,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: currentRole,
         isAdmin,
         isStaff,
-        loading,
+        isActive,
+        permissions,
+        can,
+        canAny,
+        rolePermissions,
+        profileError,
+        loading: loading || (signedIn && !permsLoaded),
         demoMode: isDemoMode,
         loginAsDemo,
         logout,

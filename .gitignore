@@ -38,3 +38,7 @@ next-env.d.ts
 .open-next
 .dev.vars
 .wrangler
+
+# Firebase emulator logs
+firestore-debug.log
+firebase-debug.log

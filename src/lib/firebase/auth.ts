@@ -201,17 +201,15 @@ export async function updateUserRoleAndStatus(
   role: UserRole,
   status: "ACTIVE" | "INACTIVE"
 ): Promise<void> {
-  const localList = getLocalUsers();
-  const found = localList.find((u) => u.userId === userId);
-  if (found) {
-    saveLocalUser({
-      ...found,
-      role,
-      status,
-      updatedAt: new Date().toISOString(),
-    });
-  }
+  const updateLocal = () => {
+    const found = getLocalUsers().find((u) => u.userId === userId);
+    if (found) saveLocalUser({ ...found, role, status, updatedAt: new Date().toISOString() });
+  };
 
+  if (isDemoMode) {
+    updateLocal();
+    return;
+  }
   try {
     const ref = doc(db, "users", userId);
     await updateDoc(ref, {
@@ -219,17 +217,31 @@ export async function updateUserRoleAndStatus(
       status,
       updatedAt: new Date().toISOString(),
     });
-  } catch (err) {
-    console.warn("Could not update user role/status in Firestore (updated locally):", err);
+    updateLocal();
+  } catch (err: any) {
+    // Show the real reason instead of pretending it worked.
+    throw new Error(
+      err?.code === "permission-denied"
+        ? "Permission denied — you cannot change this account (your own account, an Admin account, or your role lacks User Management)."
+        : `Could not update the user: ${err?.message || "unknown error"}`
+    );
   }
 }
 
 export async function deleteUserProfile(userId: string): Promise<void> {
-  removeLocalUser(userId);
+  if (isDemoMode) {
+    removeLocalUser(userId);
+    return;
+  }
   try {
     const ref = doc(db, "users", userId);
     await deleteDoc(ref);
-  } catch (err) {
-    console.warn("Could not delete user profile from Firestore (deleted locally):", err);
+    removeLocalUser(userId);
+  } catch (err: any) {
+    throw new Error(
+      err?.code === "permission-denied"
+        ? "Permission denied — you cannot remove this account."
+        : `Could not remove the user: ${err?.message || "unknown error"}`
+    );
   }
 }

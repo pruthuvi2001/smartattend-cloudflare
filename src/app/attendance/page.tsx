@@ -24,7 +24,7 @@ import { QrCode, PlusCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 export default function AttendanceHubPage() {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, can, canAny } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [rows, setRows] = useState<DailyAttendanceRow[]>([]);
   const [stats, setStats] = useState<AttendanceStats>({
@@ -51,7 +51,8 @@ export default function AttendanceHubPage() {
       setSettings(appSettings);
 
       // Lazily evaluate and backfill auto-absences for ended timetable sessions
-      await evaluateAndMarkAutoAbsences();
+      // (only for roles allowed to write attendance)
+      if (canAny(["attendance_mark", "attendance_scan"])) await evaluateAndMarkAutoAbsences();
 
       const studentList = await getStudents();
       setStudents(studentList);
@@ -103,7 +104,7 @@ export default function AttendanceHubPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission={["attendance_view", "attendance_mark"]}>
       <AppLayout>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -117,6 +118,7 @@ export default function AttendanceHubPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {can("attendance_mark") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -125,6 +127,8 @@ export default function AttendanceHubPage() {
               >
                 Manual Override
               </Button>
+              )}
+              {can("attendance_scan") && (
               <Link href="/attendance/scan">
                 <Button
                   variant="primary"
@@ -135,6 +139,7 @@ export default function AttendanceHubPage() {
                   Launch QR Scanner
                 </Button>
               </Link>
+              )}
             </div>
           </div>
 
@@ -144,7 +149,7 @@ export default function AttendanceHubPage() {
 
           {/* Manual Attendance Modal */}
           <Modal
-            isOpen={manualModalOpen}
+            isOpen={manualModalOpen && can("attendance_mark")}
             onClose={() => setManualModalOpen(false)}
             title="Manual Attendance Entry"
             description="Manually record or override student attendance status for today."

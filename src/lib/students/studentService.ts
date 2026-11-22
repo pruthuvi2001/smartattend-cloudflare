@@ -202,29 +202,8 @@ export async function addStudent(formData: StudentFormData): Promise<Student> {
     } catch {}
   }
 
-  // 2. Ensure current user profile exists in Firestore so isStaff() / isAdmin() security rules pass
-  if (auth.currentUser) {
-    try {
-      const userRef = doc(db, "users", auth.currentUser.uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        const selfProfile = {
-          userId: auth.currentUser.uid,
-          email: auth.currentUser.email || "admin@smartattend.edu",
-          displayName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Administrator",
-          role: "ADMIN",
-          status: "ACTIVE",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        // Pure create without merge: true so allow create rule (request.auth.uid == userId) passes
-        await setDoc(userRef, selfProfile);
-        console.log("Self-healed current user profile in Firestore before student write:", auth.currentUser.uid);
-      }
-    } catch (uErr) {
-      console.warn("Could not check/create user profile in Firestore:", uErr);
-    }
-  }
+  // (Removed: an old step that created an ADMIN profile for the current user when it was missing.
+  //  Missing profiles are now handled at login and must be approved by an Admin.)
 
   // 3. Write to Firestore — errors are surfaced visibly, not swallowed
   try {

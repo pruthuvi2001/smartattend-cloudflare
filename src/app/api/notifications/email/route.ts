@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { ApiAuthError, requirePermission } from "@/lib/auth/serverAuth";
 
-export async function GET() {
+/** Who may use this endpoint (checked on the server, not only in the browser). */
+const SEND_PERMISSIONS = ["attendance_scan", "attendance_mark", "payments_record", "payments_waive", "settings_manage"] as const;
+
+function authFailure(err: unknown) {
+  if (err instanceof ApiAuthError) return NextResponse.json({ error: err.message }, { status: err.status });
+  return NextResponse.json({ error: "Could not verify your account." }, { status: 403 });
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    await requirePermission(req.headers.get("authorization"), ["settings_manage"]);
+  } catch (err) {
+    return authFailure(err);
+  }
   const resendKey = process.env.RESEND_API_KEY;
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
@@ -23,6 +37,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    await requirePermission(req.headers.get("authorization"), [...SEND_PERMISSIONS]);
+  } catch (err) {
+    return authFailure(err);
+  }
+
   try {
     const body = await req.json();
     const { to, subject, html, text } = body;

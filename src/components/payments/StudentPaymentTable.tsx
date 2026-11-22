@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { Search, FileText, Download } from "lucide-react";
 import { formatDisplayDate } from "@/lib/utils/dateUtils";
 import { exportMonthlyPaymentsToPdf } from "@/lib/payments/pdfExport";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 export interface StudentPaymentTableProps {
   records: MonthlyFeeRecord[];
@@ -27,6 +28,9 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
   onViewDetails,
   onRecordPayment,
 }) => {
+  const { can } = useAuth();
+  const canPay = can("payments_record");
+  const canExport = can("payments_export");
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -122,6 +126,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
           </span>
 
           <div className="flex items-center gap-2">
+            {canExport && (
             <Button
               variant="outline"
               size="sm"
@@ -131,6 +136,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
             >
               Export PDF {classFilter !== "ALL" ? `(${classFilter})` : ""}
             </Button>
+            )}
           </div>
         </div>
       </div>
@@ -195,7 +201,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
                         >
                           View
                         </Button>
-                        {r.status === "UNPAID" && (
+                        {canPay && r.status === "UNPAID" && (
                           <Button
                             variant="primary"
                             size="sm"
@@ -262,7 +268,7 @@ export const StudentPaymentTable: React.FC<StudentPaymentTableProps> = ({
                   >
                     View
                   </Button>
-                  {r.status === "UNPAID" && (
+                  {canPay && r.status === "UNPAID" && (
                     <Button
                       variant="primary"
                       size="sm"

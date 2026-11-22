@@ -30,7 +30,7 @@ import { useToast } from "@/components/ui/Toast";
 import { exportMonthlyPaymentsToPdf } from "@/lib/payments/pdfExport";
 
 export default function MonthlyPaymentsPage() {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, can } = useAuth();
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -183,7 +183,7 @@ export default function MonthlyPaymentsPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="payments_view">
       <AppLayout>
         <div className="space-y-6">
           {/* Header Bar */}
@@ -204,6 +204,7 @@ export default function MonthlyPaymentsPage() {
             </div>
 
             <div className="flex items-center flex-wrap gap-2">
+              {can("payments_export") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -212,7 +213,9 @@ export default function MonthlyPaymentsPage() {
               >
                 Export CSV
               </Button>
+              )}
 
+              {can("payments_export") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -221,7 +224,9 @@ export default function MonthlyPaymentsPage() {
               >
                 Export PDF
               </Button>
+              )}
 
+              {can("payments_record") && (
               <Button
                 variant="primary"
                 size="sm"
@@ -235,6 +240,7 @@ export default function MonthlyPaymentsPage() {
               >
                 Record Payment
               </Button>
+              )}
             </div>
           </div>
 
@@ -271,7 +277,7 @@ export default function MonthlyPaymentsPage() {
           {/* Record Payment Modal */}
           <PaymentModal
             records={records}
-            isOpen={paymentModalOpen}
+            isOpen={paymentModalOpen && can("payments_record")}
             onClose={() => {
               setPaymentModalOpen(false);
               setSelectedStudentForPayment(null);
@@ -311,7 +317,7 @@ export default function MonthlyPaymentsPage() {
 
           {/* Waive Fee Reason Modal */}
           <Modal
-            isOpen={waiveModalOpen}
+            isOpen={waiveModalOpen && can("payments_waive")}
             onClose={() => {
               setWaiveModalOpen(false);
               setWaiveRecord(null);

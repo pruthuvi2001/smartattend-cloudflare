@@ -11,8 +11,10 @@ import { Search, Eye, Edit, UserCheck, UserX, QrCode, IdCard, Trash2 } from "luc
 
 export interface StudentTableProps {
   students: Student[];
-  onEdit: (student: Student) => void;
-  onToggleStatus: (studentId: string, currentStatus: "ACTIVE" | "INACTIVE") => void;
+  /** Shown when provided (role may edit students) */
+  onEdit?: (student: Student) => void;
+  /** Shown when provided (role may edit students) */
+  onToggleStatus?: (studentId: string, currentStatus: "ACTIVE" | "INACTIVE") => void;
   /** Admin only — the button is shown when this is provided */
   onChangeId?: (student: Student) => void;
   /** Admin only — the button is shown when this is provided */
@@ -164,6 +166,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
+                        {onEdit && (
                         <button
                           onClick={() => onEdit(s)}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors"
@@ -171,6 +174,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+                        )}
+                        {onToggleStatus && (
                         <button
                           onClick={() => onToggleStatus(s.studentId, s.status)}
                           className={`p-1.5 rounded-lg transition-colors ${
@@ -186,6 +191,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                             <UserCheck className="w-4 h-4" />
                           )}
                         </button>
+                        )}
                         {onChangeId && (
                           <button
                             onClick={() => onChangeId(s)}

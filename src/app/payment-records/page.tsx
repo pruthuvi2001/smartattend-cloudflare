@@ -47,7 +47,7 @@ const LABEL = "block text-xs font-semibold uppercase tracking-wider text-slate-7
  * "Record Payment" form, opened from a month's details.
  */
 export default function PaymentRecordsPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, can } = useAuth();
   const toast = useToast();
   const thisYear = new Date().getFullYear();
 
@@ -199,7 +199,7 @@ export default function PaymentRecordsPage() {
   ];
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="payments_view">
       <AppLayout>
         <div className="space-y-5">
           {/* Header */}
@@ -216,6 +216,7 @@ export default function PaymentRecordsPage() {
                 student came to class (Present or Late).
               </p>
             </div>
+            {can("payments_export") && (
             <Button
               variant="primary"
               size="sm"
@@ -226,6 +227,7 @@ export default function PaymentRecordsPage() {
             >
               Export PDF
             </Button>
+            )}
           </div>
 
           {/* Filters */}
@@ -444,7 +446,7 @@ export default function PaymentRecordsPage() {
           {/* Existing payment form (full fee only) */}
           {payRecord && (
             <PaymentModal
-              isOpen={!!payRecord}
+              isOpen={!!payRecord && can("payments_record")}
               onClose={() => setPayRecord(null)}
               students={students}
               initialStudent={payStudent}

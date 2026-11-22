@@ -15,7 +15,8 @@ import {
   School,
   GraduationCap,
   Receipt,
-  Table2
+  Table2,
+  KeyRound
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -23,10 +24,13 @@ import { Badge } from "@/components/ui/Badge";
 import { SantaHat } from "@/components/theme/SantaHat";
 import { FestiveMotionToggle } from "@/components/theme/FestiveMotionToggle";
 import { FESTIVE_SEASON } from "@/components/theme/festive";
+import { PAGE_PERMISSIONS } from "@/lib/auth/permissions";
 
 export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobile }) => {
   const pathname = usePathname();
-  const { userProfile, role, isAdmin, logout } = useAuth();
+  const { userProfile, role, isAdmin, canAny, logout } = useAuth();
+  // A menu item is shown only when the role may open that page (see src/lib/auth/permissions.ts).
+  const allowed = (href: string) => canAny(PAGE_PERMISSIONS[href] ?? []);
 
   const mainNav = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -36,12 +40,13 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
     { label: "Monthly Payments", href: "/monthly-payments", icon: Receipt },
     { label: "Payment Records", href: "/payment-records", icon: Table2 },
     { label: "Reports", href: "/reports", icon: Users },
-  ];
+  ].filter((item) => allowed(item.href));
 
   const adminNav = [
     { label: "User Management", href: "/users", icon: ShieldCheck },
     { label: "System Settings", href: "/settings", icon: Settings },
-  ];
+  ].filter((item) => allowed(item.href));
+  if (isAdmin) adminNav.push({ label: "Roles & Permissions", href: "/roles", icon: KeyRound });
 
   const handleLinkClick = () => {
     if (onCloseMobile) onCloseMobile();
@@ -112,7 +117,7 @@ export const Sidebar: React.FC<{ onCloseMobile?: () => void }> = ({ onCloseMobil
             </nav>
           </div>
 
-          {isAdmin && (
+          {adminNav.length > 0 && (
             <div>
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                 Administration

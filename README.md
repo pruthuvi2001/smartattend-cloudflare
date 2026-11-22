@@ -74,10 +74,11 @@ smartattend/
 ## 4. Firestore Database Structure
 
 ### Collections:
-1. `users/{userId}`: User account profiles, email, displayName, role (`ADMIN` | `STAFF`), status (`ACTIVE` | `INACTIVE`).
+1. `users/{userId}`: User account profiles, email, displayName, role (`ADMIN` | `PRINCIPAL` | `TEACHER` | `STAFF` | `VIEWER`), status (`ACTIVE` | `INACTIVE`).
 2. `students/{studentId}`: Student records with `studentId`, `fullName`, `class`, `section`, `qrCodeValue`, `status`.
 3. `attendance/{studentId}_{date}`: Daily attendance record with snapshot fields (`studentNameSnapshot`, `classSnapshot`), timestamp, formatted time, `markedBy`, and `method: "QR_SCAN"`.
 4. `settings/system`: Institution profile, school name, default timezone (`Asia/Colombo`), and cutoff times.
+5. `settings/rolePermissions`: What each role may do (saved from **Roles & Permissions**). Created the first time an Admin saves that page; until then the built-in defaults apply.
 
 ---
 
@@ -116,6 +117,37 @@ firebase login
 
 # Deploy rules and indexes
 firebase deploy --only firestore
+```
+
+---
+
+## 6a. Roles & Permissions
+
+Admins open **Administration → Roles & Permissions** (`/roles`) to choose, for each role
+(Principal, Teacher, Staff, Viewer), which features it may use. Admin always has full access
+and cannot be restricted; "Role & Permission Management" and "Clear All Data" are Admin-only.
+
+- The list of permissions lives in `src/lib/auth/permissions.ts` (one place for the whole app).
+- **Menus, pages and buttons** follow the permissions (`useAuth().can()`, `<ProtectedRoute permission=…>`).
+- **The database enforces them too** (`firestore.rules` reads `settings/rolePermissions`), so
+  nothing can be done by calling Firestore directly. The email API checks the signed-in user's
+  permissions on the server as well.
+- Changes reach signed-in users within seconds — nobody has to log out.
+- Nobody can change their own role or status; only an Admin can create or change Admin accounts;
+  the last active Admin cannot be demoted, deactivated or removed.
+- Accounts without a profile (e.g. created outside the app) start as **INACTIVE** and must be
+  activated by an Admin in User Management.
+
+**Deploying only the security rules** (does not touch any data or indexes):
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+**Testing the rules locally** (Firestore emulator with fake data, needs Java):
+
+```bash
+npm run test:rules
 ```
 
 ---

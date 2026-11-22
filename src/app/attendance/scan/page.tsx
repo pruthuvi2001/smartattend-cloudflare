@@ -28,7 +28,7 @@ import { useToast } from "@/components/ui/Toast";
 import confetti from "canvas-confetti";
 
 export default function AttendanceScanPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, can, canAny } = useAuth();
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [activeResult, setActiveResult] = useState<ScanAttendanceResult | null>(null);
   // Bumped on every result so the result card restarts its countdown.
@@ -181,7 +181,7 @@ export default function AttendanceScanPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="attendance_scan">
       <AppLayout>
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header Bar */}
@@ -214,7 +214,7 @@ export default function AttendanceScanPage() {
                   result={activeResult}
                   onDismiss={handleDismissCard}
                   autoDismissMs={3500}
-                  onViewFeeStatus={handleViewFeeStatus}
+                  onViewFeeStatus={canAny(["payments_view", "payments_record"]) ? handleViewFeeStatus : undefined}
                 />
               )}
               <UsbQrScanner
@@ -252,7 +252,7 @@ export default function AttendanceScanPage() {
           {/* Record Payment Modal */}
           {activeFeeRecord && (
             <PaymentModal
-              isOpen={payModalOpen}
+              isOpen={payModalOpen && can("payments_record")}
               onClose={() => {
                 setPayModalOpen(false);
               }}

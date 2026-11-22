@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { getStudentById, getStudents } from "@/lib/students/studentService";
 import { getStudentAttendanceHistory } from "@/lib/attendance/attendanceService";
 import {
@@ -61,6 +62,7 @@ export default function StudentDetailPage() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [activeDetailsRecord, setActiveDetailsRecord] = useState<MonthlyFeeRecord | null>(null);
   const toast = useToast();
+  const { can } = useAuth();
 
   const loadData = async () => {
     if (!studentId) return;
@@ -117,7 +119,7 @@ export default function StudentDetailPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute permission="students_view">
         <AppLayout>
           <div className="p-12 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -130,7 +132,7 @@ export default function StudentDetailPage() {
 
   if (!student) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute permission="students_view">
         <AppLayout>
           <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
             <h3 className="text-lg font-bold text-slate-800">Student Not Found</h3>
@@ -158,7 +160,7 @@ export default function StudentDetailPage() {
   const getStatusBadge = (status: string) => <PaymentStatusBadge status={status} />;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="students_view">
       <AppLayout>
         <div className="space-y-6">
           {/* Top Bar */}
@@ -185,6 +187,7 @@ export default function StudentDetailPage() {
               </div>
             </div>
 
+            {can("payments_record") && (
             <Button
               variant="primary"
               size="sm"
@@ -197,6 +200,7 @@ export default function StudentDetailPage() {
             >
               Record Payment
             </Button>
+            )}
           </div>
 
           {/* Main Grid: Left ID Badge / Details, Right Attendance & Payments */}
@@ -342,6 +346,7 @@ export default function StudentDetailPage() {
                   <Card>
                     <CardHeader className="py-4 px-5 flex items-center justify-between">
                       <CardTitle className="text-sm">Monthly Payments Record</CardTitle>
+                      {can("payments_record") && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -353,6 +358,7 @@ export default function StudentDetailPage() {
                       >
                         + New Payment
                       </Button>
+                      )}
                     </CardHeader>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-slate-600">
@@ -418,7 +424,7 @@ export default function StudentDetailPage() {
 
           {/* Payment Modal */}
           <PaymentModal
-            isOpen={payModalOpen}
+            isOpen={payModalOpen && can("payments_record")}
             onClose={() => {
               setPayModalOpen(false);
               setSelectedFeeRecord(null);

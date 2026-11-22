@@ -8,6 +8,8 @@ export default defineConfig({
     },
   },
   test: {
+    // tests-rules/ needs the Firestore emulator: npm run test:rules
+    exclude: ["**/node_modules/**", "tests-rules/**"],
     environment: "node",
   },
 });

@@ -29,9 +29,10 @@ import {
   Receipt
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { IfCan } from "@/components/auth/IfCan";
 
 export default function DashboardPage() {
-  const { userProfile, role, isAdmin } = useAuth();
+  const { userProfile, role, isAdmin, canAny } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [rows, setRows] = useState<DailyAttendanceRow[]>([]);
@@ -55,7 +56,8 @@ export default function DashboardPage() {
       setSettings(appSettings);
 
       // Lazily evaluate and backfill auto-absences for ended timetable sessions
-      await evaluateAndMarkAutoAbsences();
+      // (only for roles allowed to write attendance)
+      if (canAny(["attendance_mark", "attendance_scan"])) await evaluateAndMarkAutoAbsences();
 
       const studentList = await getStudents();
       setStudents(studentList);
@@ -83,7 +85,7 @@ export default function DashboardPage() {
     .slice(0, 6);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="dashboard_view">
       <AppLayout>
         <div className="space-y-6">
           {/* Welcome Banner */}
@@ -105,6 +107,7 @@ export default function DashboardPage() {
               </p>
             </div>
 
+            <IfCan any="attendance_scan">
             <div className="flex items-center gap-2 shrink-0">
               <Link href="/attendance/scan">
                 <Button
@@ -116,6 +119,7 @@ export default function DashboardPage() {
                 </Button>
               </Link>
             </div>
+            </IfCan>
           </div>
 
           {/* Key Metrics Cards */}
@@ -130,6 +134,7 @@ export default function DashboardPage() {
                   <CardTitle className="text-sm">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2.5 p-4">
+                  <IfCan any="attendance_scan">
                   <Link href="/attendance/scan" className="block">
                     <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between hover:bg-indigo-100 transition-colors group">
                       <div className="flex items-center gap-3">
@@ -144,7 +149,9 @@ export default function DashboardPage() {
                       <ArrowRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </Link>
+                  </IfCan>
 
+                  <IfCan any="students_view">
                   <Link href="/students" className="block">
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-100 transition-colors group">
                       <div className="flex items-center gap-3">
@@ -159,7 +166,9 @@ export default function DashboardPage() {
                       <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </Link>
+                  </IfCan>
 
+                  <IfCan any="reports_view">
                   <Link href="/reports" className="block">
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-100 transition-colors group">
                       <div className="flex items-center gap-3">
@@ -174,7 +183,9 @@ export default function DashboardPage() {
                       <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </Link>
+                  </IfCan>
 
+                  <IfCan any="payments_view">
                   <Link href="/monthly-payments" className="block">
                     <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl flex items-center justify-between hover:bg-indigo-100 transition-colors group">
                       <div className="flex items-center gap-3">
@@ -189,6 +200,7 @@ export default function DashboardPage() {
                       <ArrowRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </Link>
+                  </IfCan>
                 </CardContent>
               </Card>
 
@@ -219,6 +231,7 @@ export default function DashboardPage() {
                     <Clock className="w-4 h-4 text-indigo-600" />
                     <CardTitle className="text-sm">Today&apos;s Attendance Activity</CardTitle>
                   </div>
+                  <IfCan any="reports_view">
                   <Link
                     href="/reports"
                     className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
@@ -226,6 +239,7 @@ export default function DashboardPage() {
                     View All ({rows.length})
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
+                  </IfCan>
                 </CardHeader>
 
                 <div className="divide-y divide-slate-100">

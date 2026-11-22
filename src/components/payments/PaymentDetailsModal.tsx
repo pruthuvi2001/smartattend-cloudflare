@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { PaymentStatusBadge } from "@/components/payments/PaymentStatusBadge";
 import { formatDisplayDate } from "@/lib/utils/dateUtils";
 import { PlusCircle, FileText } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 export interface PaymentDetailsModalProps {
   isOpen: boolean;
@@ -26,10 +27,11 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
   onRecordPayment,
   onWaiveFee,
 }) => {
+  const { can } = useAuth();
   if (!record) return null;
 
   const isNoClass = record.status === "NO_CLASS";
-  const canRecordPayment = record.status === "UNPAID" || isNoClass;
+  const canRecordPayment = can("payments_record") && (record.status === "UNPAID" || isNoClass);
   const receivedEarlier = record.status === "UNPAID" && (record.totalPaid || 0) > 0;
 
   return (
@@ -162,7 +164,7 @@ export const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {record.status === "UNPAID" && onWaiveFee && (
+            {record.status === "UNPAID" && onWaiveFee && can("payments_waive") && (
               <Button
                 variant="outline"
                 size="sm"

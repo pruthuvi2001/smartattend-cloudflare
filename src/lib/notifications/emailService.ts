@@ -1,6 +1,17 @@
 import { Student } from "@/types/student";
 import { AttendanceRecord } from "@/types/attendance";
 import { MonthlyFeeRecord, PaymentTransaction } from "@/types/payment";
+import { auth } from "../firebase/config";
+
+/** The signed-in user's ID token, so the email API can check their permissions on the server. */
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 interface SendAttendanceEmailOptions {
   student: Student;
@@ -111,7 +122,7 @@ export async function sendAttendanceEmailNotification(
   try {
     const res = await fetch("/api/notifications/email", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         to: student.email,
         subject,
@@ -231,7 +242,7 @@ export async function sendPaymentEmailNotification(
   try {
     const res = await fetch("/api/notifications/email", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         to: student.email,
         subject,
@@ -265,7 +276,7 @@ export interface EmailServiceStatus {
  */
 export async function checkEmailServiceStatus(): Promise<EmailServiceStatus> {
   try {
-    const res = await fetch("/api/notifications/email", { method: "GET" });
+    const res = await fetch("/api/notifications/email", { method: "GET", headers: await authHeader() });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
@@ -289,7 +300,7 @@ export async function sendDiagnosticTestEmail(toEmail: string): Promise<{ succes
   try {
     const res = await fetch("/api/notifications/email", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({
         to: toEmail,
         subject: "SmartAttend Diagnostic Test Email",

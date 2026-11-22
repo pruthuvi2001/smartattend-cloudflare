@@ -27,7 +27,7 @@ import { useToast } from "@/components/ui/Toast";
 import { autoMigrateLegacyClasses } from "@/lib/migration/classMigration";
 
 export default function StudentsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, can } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -62,7 +62,8 @@ export default function StudentsPage() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      await autoMigrateLegacyClasses();
+      // Old-format class names are upgraded only by roles that may edit students.
+      if (can("students_edit")) await autoMigrateLegacyClasses();
       const list = await getStudents();
       setStudents(list);
     } catch (err: any) {
@@ -152,7 +153,7 @@ export default function StudentsPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute permission="students_view">
       <AppLayout>
         <div className="space-y-6">
           {/* Header Bar */}
@@ -180,6 +181,7 @@ export default function StudentsPage() {
                 Sync & Refresh
               </Button>
 
+              {can("students_export") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -188,7 +190,9 @@ export default function StudentsPage() {
               >
                 Export CSV
               </Button>
+              )}
 
+              {can("students_create") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -197,7 +201,9 @@ export default function StudentsPage() {
               >
                 Import CSV
               </Button>
+              )}
 
+              {can("students_create") && (
               <Button
                 variant="primary"
                 size="sm"
@@ -206,6 +212,7 @@ export default function StudentsPage() {
               >
                 Add Student
               </Button>
+              )}
 
               {isAdmin && (
                 <Button
@@ -222,23 +229,27 @@ export default function StudentsPage() {
           </div>
 
           {/* Missing Email Migration Banner */}
-          <MissingEmailBanner students={students} onUpdated={loadStudents} />
+          {can("students_edit") && <MissingEmailBanner students={students} onUpdated={loadStudents} />}
 
           {/* Table */}
           <StudentTable
             students={students}
-            onEdit={(student) => {
-              setEditingStudent(student);
-              setEditModalOpen(true);
-            }}
-            onToggleStatus={handleToggleStatus}
-            onChangeId={isAdmin ? setChangingIdFor : undefined}
-            onDelete={isAdmin ? setDeleting : undefined}
+            onEdit={
+              can("students_edit")
+                ? (student) => {
+                    setEditingStudent(student);
+                    setEditModalOpen(true);
+                  }
+                : undefined
+            }
+            onToggleStatus={can("students_edit") ? handleToggleStatus : undefined}
+            onChangeId={can("students_change_id") ? setChangingIdFor : undefined}
+            onDelete={can("students_delete") ? setDeleting : undefined}
           />
 
           {/* Add Student Modal */}
           <Modal
-            isOpen={addModalOpen}
+            isOpen={addModalOpen && can("students_create")}
             onClose={() => setAddModalOpen(false)}
             title="Register New Student"
             description="Enter student information and assign a unique physical card QR code value."

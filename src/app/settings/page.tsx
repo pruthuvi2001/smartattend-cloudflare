@@ -17,7 +17,7 @@ import { ClassScheduleManager } from "@/components/classes/ClassScheduleManager"
 import { EmailDiagnosticCard } from "@/components/settings/EmailDiagnosticCard";
 
 export default function SettingsPage() {
-  const { userProfile } = useAuth();
+  const { userProfile, can, isAdmin } = useAuth();
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [schoolName, setSchoolName] = useState("");
   const [timezone, setTimezone] = useState("Asia/Colombo");
@@ -81,7 +81,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <ProtectedRoute requiredRole="ADMIN">
+    <ProtectedRoute permission={["settings_manage", "classes_manage"]}>
       <AppLayout>
         <div className="max-w-4xl mx-auto space-y-6">
           <div>
@@ -93,6 +93,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
+          {can("settings_manage") && (
           <form onSubmit={handleSaveSettings} className="space-y-6">
             {/* Institution Profile */}
             <Card>
@@ -196,16 +197,20 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+          )}
 
           {/* Email Notification Diagnostic & Transport Status */}
-          <EmailDiagnosticCard />
+          {can("settings_manage") && <EmailDiagnosticCard />}
 
           {/* Class Timetable & Schedule Management */}
+          {can("classes_manage") && (
           <Card className="p-6 bg-white">
             <ClassScheduleManager />
           </Card>
+          )}
 
-          {/* Database Cleanup & Production Reset */}
+          {/* Database Cleanup & Production Reset — ADMIN only, never configurable */}
+          {isAdmin && (
           <Card className="border-rose-200 bg-rose-50/20">
             <CardHeader>
               <CardTitle className="text-sm text-rose-950 flex items-center gap-2">
@@ -236,6 +241,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
       </AppLayout>
     </ProtectedRoute>
